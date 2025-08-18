@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package protocol;
+
+// Snapshot represents the authoritative game state at a point in time.
+message Snapshot {
+  // Version of the snapshot schema.
+  uint32 version = 1;
+
+  // Positions of all entities flattened as x,y pairs.
+  repeated float positions = 2;
+}

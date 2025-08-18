@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protocol;
+
+// Input represents player input for a single tick.
+message Input {
+  // Version of the input schema.
+  uint32 version = 1;
+
+  // Horizontal movement axis.
+  float horizontal = 2;
+
+  // Vertical movement axis.
+  float vertical = 3;
+}
