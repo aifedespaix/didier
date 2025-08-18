@@ -21,6 +21,19 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
 
+  packages/ecs:
+    dependencies:
+      bitecs:
+        specifier: ^0.3.40
+        version: 0.3.40
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.11
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.11)
+
   packages/protocol:
     dependencies:
       '@bufbuild/protobuf':
@@ -558,6 +571,9 @@ packages:
   better-path-resolve@1.0.0:
     resolution: {integrity: sha512-pbnl5XzGBdrFU/wT4jqmJVPn2B6UHPBOhzMQkY/SPUPB6QtUXtmBHBIwCbXJol93mOpGMnQyP/+BB19q04xj7g==}
     engines: {node: '>=4'}
+
+  bitecs@0.3.40:
+    resolution: {integrity: sha512-wAylY4pNfX8IeIH5phtwt1lUNtHKrkoSNrArI7Ris2Y4nEQWFIVvXdgAuqprEg9bq8Wolmlj0gVfeG6MFmtI2Q==}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -1586,6 +1602,8 @@ snapshots:
   better-path-resolve@1.0.0:
     dependencies:
       is-windows: 1.0.2
+
+  bitecs@0.3.40: {}
 
   braces@3.0.3:
     dependencies:
