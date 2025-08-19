@@ -1,0 +1,20 @@
+{
+  "name": "@aife/server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colyseus/ws-transport": "^0.16.5",
+    "colyseus": "^0.16.4",
+    "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "colyseus.js": "^0.16.19",
+    "vitest": "^1.6.0"
+  }
+}
