@@ -1,0 +1,33 @@
+{
+  "name": "@aife/client",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "lint": "biome lint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.92.4",
+    "@react-three/fiber": "^8.15.13",
+    "next": "^14.2.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.164.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.1.2",
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.21",
+    "@types/react-dom": "^18.2.7",
+    "@types/three": "^0.164.0",
+    "@types/ws": "^8.5.9",
+    "jsdom": "^26.1.0",
+    "vitest": "^1.6.0",
+    "ws": "^8.17.0"
+  }
+}
