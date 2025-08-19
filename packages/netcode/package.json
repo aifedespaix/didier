@@ -12,7 +12,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.10",
     "vitest": "^1.6.0",
-    "ws": "^8.17.0"
+    "ws": "^8.17.0",
+    "fflate": "^0.8.2"
   }
 }

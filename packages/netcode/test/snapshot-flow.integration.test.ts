@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { WebSocketServer, WebSocket } from 'ws';
+import {
+  WebSocketServer,
+  WebSocket,
+  MessageEvent,
+  ErrorEvent,
+} from 'ws';
 import { Snapshot } from '@aife/protocol';
 import { encodeSnapshot, decodeSnapshot } from '../src/codec';
 
@@ -14,15 +19,15 @@ describe('snapshot flow', () => {
     await new Promise<void>((resolve, reject) => {
       const client = new WebSocket('ws://localhost:12350');
       client.binaryType = 'arraybuffer';
-      client.onmessage = (event) => {
+      client.onmessage = (event: MessageEvent) => {
         const received = decodeSnapshot(new Uint8Array(event.data as ArrayBuffer));
         expect(received.positions).toEqual(snapshot.positions);
         expect(received.version).toBe(snapshot.version);
         client.close();
         resolve();
       };
-      client.onerror = (err) => {
-        reject(err);
+      client.onerror = (event: ErrorEvent) => {
+        reject(event.error as Error);
       };
     });
 
