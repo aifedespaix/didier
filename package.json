@@ -12,8 +12,11 @@
     "changeset": "changeset"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.29.6",
     "@biomejs/biome": "^2.2.0",
+    "@changesets/cli": "^2.29.6",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "basisu": "^1.16.3",
+    "gltfpack": "^0.24.0",
     "turbo": "^2.5.6",
     "typescript": "^5.9.2"
   },
