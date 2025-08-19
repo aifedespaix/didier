@@ -3,15 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type {
-  BinaryReadOptions,
-  FieldList,
-  JsonReadOptions,
-  JsonValue,
-  PartialMessage,
-  PlainMessage,
-} from '@bufbuild/protobuf';
-import { Message, proto3 } from '@bufbuild/protobuf';
+import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
+import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
  * Input represents player input for a single tick.
@@ -46,38 +39,27 @@ export class Input extends Message<Input> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = 'protocol.Input';
+  static readonly typeName = "protocol.Input";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: 'version', kind: 'scalar', T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: 'horizontal', kind: 'scalar', T: 2 /* ScalarType.FLOAT */ },
-    { no: 3, name: 'vertical', kind: 'scalar', T: 2 /* ScalarType.FLOAT */ },
+    { no: 1, name: "version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "horizontal", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 3, name: "vertical", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
   ]);
 
-  static fromBinary(
-    bytes: Uint8Array,
-    options?: Partial<BinaryReadOptions>
-  ): Input {
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Input {
     return new Input().fromBinary(bytes, options);
   }
 
-  static fromJson(
-    jsonValue: JsonValue,
-    options?: Partial<JsonReadOptions>
-  ): Input {
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Input {
     return new Input().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(
-    jsonString: string,
-    options?: Partial<JsonReadOptions>
-  ): Input {
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Input {
     return new Input().fromJsonString(jsonString, options);
   }
 
-  static equals(
-    a: Input | PlainMessage<Input> | undefined,
-    b: Input | PlainMessage<Input> | undefined
-  ): boolean {
+  static equals(a: Input | PlainMessage<Input> | undefined, b: Input | PlainMessage<Input> | undefined): boolean {
     return proto3.util.equals(Input, a, b);
   }
 }
+

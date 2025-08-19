@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package protocol;
+
+// Error represents a protocol-level error message.
+message Error {
+  // Version of the error schema.
+  uint32 version = 1;
+
+  // Numeric error code.
+  uint32 code = 2;
+
+  // Human-readable error description.
+  string message = 3;
+}
+

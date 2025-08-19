@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package protocol;
+
+// Welcome is sent by the server after a Join message.
+message Welcome {
+  // Version of the welcome schema.
+  uint32 version = 1;
+
+  // Identifier assigned to the player by the server.
+  uint32 player_id = 2;
+}
+

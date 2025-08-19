@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package protocol;
+
+// Ack acknowledges the latest processed input tick.
+message Ack {
+  // Version of the ack schema.
+  uint32 version = 1;
+
+  // The tick of the last processed input.
+  uint32 input_tick = 2;
+}
+
