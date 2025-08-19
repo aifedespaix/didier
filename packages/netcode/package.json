@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "ws": "^8.17.0"
   }
 }

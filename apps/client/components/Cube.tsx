@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Mesh } from 'three';
 import { useFrame } from '@react-three/fiber';
 import type { Position } from '../hooks/useKeyboardMovement';
@@ -19,6 +19,11 @@ export function Cube({ position }: CubeProps): JSX.Element {
       ref.current.position.set(position.x, position.y, position.z);
     }
   });
+  useEffect(() => {
+    (globalThis as { __cubePosition?: Position }).__cubePosition = {
+      ...position,
+    };
+  }, [position]);
   return (
     <mesh ref={ref}>
       <boxGeometry />

@@ -21,6 +21,10 @@ export function Game({ wsUrl = '/ws' }: { wsUrl?: string }): JSX.Element {
   );
 }
 
-export default function Page(): JSX.Element {
-  return <Game />;
+export default function Page({
+  searchParams,
+}: {
+  searchParams?: { ws?: string };
+}): JSX.Element {
+  return <Game wsUrl={searchParams?.ws} />;
 }
