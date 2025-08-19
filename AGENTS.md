@@ -135,5 +135,68 @@ La stack technique complète est décrite en détail dans :
 - Les prompts utilisateurs (features/fixes) doivent être transformés en tâches **directives et complètes** (quoi coder, où coder, comment tester).  
 
 ---
+📄 Rédaction des ADR (Architecture Decision Records)
 
-👉 Avec ce fichier, un agent saura immédiatement **comment coder, où placer le code, quelles règles respecter et comment valider la qualité**.
+Pour chaque décision technique ou architecturale importante, un ADR (Architecture Decision Record) doit être rédigé afin de documenter le contexte, les choix effectués, les alternatives rejetées et les conséquences.
+Les ADR servent de référence historique et garantissent la traçabilité des décisions dans le projet.
+
+Règles de base
+
+Un ADR = une décision → Pas de mélange de sujets.
+
+Un fichier par ADR → Placé dans docs/adr/ (ou tout dossier désigné).
+
+Nom du fichier : XXXX-titre_snake_case.md
+
+XXXX → Numéro incrémental sur 4 chiffres (ex. 0002-choix_moteur_reseau.md).
+
+titre_snake_case → Reflète clairement le sujet de la décision.
+
+Structure recommandée
+
+Chaque ADR doit être concis, clair et complet. Voici la structure à suivre :
+
+# ADR 0002 - Choix du moteur réseau
+
+- **Statut** : Accepté | Proposé | Rejeté | Supersédé
+- **Date** : YYYY-MM-DD
+- **Auteur** : Nom ou équipe
+- **Version projet** : vX.X.X *(optionnel)*
+
+## Contexte
+Expliquer **pourquoi** cette décision est nécessaire :
+- Problème à résoudre
+- Objectifs recherchés
+- Contraintes techniques, légales ou business
+
+## Décision
+Décrire **le choix final** clairement.  
+Exemple :  
+> Nous adoptons **Colyseus** comme moteur réseau pour gérer la synchronisation en temps réel.
+
+## Alternatives considérées
+Lister les solutions envisagées et pourquoi elles ont été **rejetées** :
+- **WebSocket custom** → Plus flexible mais trop coûteux en maintenance
+- **Photon Engine** → Licence trop restrictive
+
+## Conséquences
+Décrire **l’impact** de la décision :
+- Bénéfices
+- Risques et limitations
+- Impacts sur l’architecture, les performances, la stack ou l’équipe
+
+## Liens utiles *(optionnel)*
+- PR / Commit liés
+- Documentation externe
+
+Bonnes pratiques
+
+Rédiger l’ADR au moment de la décision, pas après.
+
+Toujours expliquer le contexte et les alternatives, même si la décision paraît évidente.
+
+Mettre à jour le statut si la décision change (Supersédé par ADR-XXXX).
+
+Ne jamais supprimer un ADR : l’historique doit être complet et traçable.
+
+Lier les ADR pertinents dans les Pull Requests associées.
