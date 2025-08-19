@@ -3,15 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type {
-  BinaryReadOptions,
-  FieldList,
-  JsonReadOptions,
-  JsonValue,
-  PartialMessage,
-  PlainMessage,
-} from '@bufbuild/protobuf';
-import { Message, proto3 } from '@bufbuild/protobuf';
+import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
+import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
  * Snapshot represents the authoritative game state at a point in time.
@@ -39,43 +32,26 @@ export class Snapshot extends Message<Snapshot> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = 'protocol.Snapshot';
+  static readonly typeName = "protocol.Snapshot";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: 'version', kind: 'scalar', T: 13 /* ScalarType.UINT32 */ },
-    {
-      no: 2,
-      name: 'positions',
-      kind: 'scalar',
-      T: 2 /* ScalarType.FLOAT */,
-      repeated: true,
-    },
+    { no: 1, name: "version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "positions", kind: "scalar", T: 2 /* ScalarType.FLOAT */, repeated: true },
   ]);
 
-  static fromBinary(
-    bytes: Uint8Array,
-    options?: Partial<BinaryReadOptions>
-  ): Snapshot {
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Snapshot {
     return new Snapshot().fromBinary(bytes, options);
   }
 
-  static fromJson(
-    jsonValue: JsonValue,
-    options?: Partial<JsonReadOptions>
-  ): Snapshot {
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Snapshot {
     return new Snapshot().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(
-    jsonString: string,
-    options?: Partial<JsonReadOptions>
-  ): Snapshot {
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Snapshot {
     return new Snapshot().fromJsonString(jsonString, options);
   }
 
-  static equals(
-    a: Snapshot | PlainMessage<Snapshot> | undefined,
-    b: Snapshot | PlainMessage<Snapshot> | undefined
-  ): boolean {
+  static equals(a: Snapshot | PlainMessage<Snapshot> | undefined, b: Snapshot | PlainMessage<Snapshot> | undefined): boolean {
     return proto3.util.equals(Snapshot, a, b);
   }
 }
+

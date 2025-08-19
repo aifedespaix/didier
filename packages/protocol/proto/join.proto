@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package protocol;
+
+// Join is sent by a client to initiate a session.
+message Join {
+  // Version of the join schema.
+  uint32 version = 1;
+}
+

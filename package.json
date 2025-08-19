@@ -9,6 +9,7 @@
     "lint": "biome lint .",
     "format": "biome format .",
     "typecheck": "turbo typecheck",
+    "proto:gen": "pnpm --filter @aife/protocol generate",
     "changeset": "changeset",
     "e2e": "playwright test"
   },

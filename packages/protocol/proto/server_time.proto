@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package protocol;
+
+// ServerTime communicates the authoritative server time in milliseconds.
+message ServerTime {
+  // Version of the server time schema.
+  uint32 version = 1;
+
+  // Unix epoch time in milliseconds.
+  uint64 unix_milliseconds = 2;
+}
+
