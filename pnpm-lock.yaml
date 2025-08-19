@@ -135,6 +135,12 @@ importers:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.11
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.2
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.11)(jsdom@26.1.0)
