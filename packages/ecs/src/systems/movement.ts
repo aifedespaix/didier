@@ -1,8 +1,6 @@
-import { defineQuery } from 'bitecs';
 import type { IWorld } from 'bitecs';
 import { Position, Velocity } from '../components';
-
-const movableQuery = defineQuery([Position, Velocity]);
+import { movableQuery } from '../queries';
 
 /**
  * Advances entity positions by applying velocity.
