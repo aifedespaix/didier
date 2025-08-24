@@ -1,0 +1,34 @@
+[
+  {
+    "tick": 1,
+    "rngState": 1831565936,
+    "state": {
+      "position": 1,
+      "random": 0.7872516233474016
+    }
+  },
+  {
+    "tick": 2,
+    "rngState": -631835547,
+    "state": {
+      "position": 1,
+      "random": 0.9657951889093965
+    }
+  },
+  {
+    "tick": 3,
+    "rngState": 1199730266,
+    "state": {
+      "position": 0,
+      "random": 1.4611107029486448
+    }
+  },
+  {
+    "tick": 4,
+    "rngState": -1263671217,
+    "state": {
+      "position": 2,
+      "random": 1.6924726655706763
+    }
+  }
+]
