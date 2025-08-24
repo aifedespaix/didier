@@ -10,6 +10,12 @@ export interface Rng {
    * Returns the next pseudo-random number in the range [0, 1).
    */
   next(): number;
+
+  /**
+   * Current internal state of the generator. Exposing the state allows
+   * serialization and deterministic replay.
+   */
+  getState(): number;
 }
 
 /**
@@ -19,13 +25,23 @@ export interface Rng {
  * @returns A deterministic random number generator.
  */
 export function createRng(seed: number): Rng {
-  let state = seed >>> 0;
+  return createRngFromState(seed >>> 0);
+}
+
+/**
+ * Re-creates a {@link Rng} from a previously captured internal state.
+ *
+ * @param state - Internal state obtained via {@link Rng.getState}.
+ */
+export function createRngFromState(state: number): Rng {
+  let internalState = state >>> 0;
   return {
     next: (): number => {
-      state = (state + 0x6d2b79f5) | 0;
-      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      internalState = (internalState + 0x6d2b79f5) | 0;
+      let t = Math.imul(internalState ^ (internalState >>> 15), 1 | internalState);
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     },
+    getState: (): number => internalState,
   };
 }

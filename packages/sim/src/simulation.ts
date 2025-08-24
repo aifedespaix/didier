@@ -1,32 +1,28 @@
 import type { Rng } from './rng';
-import { createRng } from './rng';
+import { createRng, createRngFromState } from './rng';
+import { deserializeSnapshot, type SimulationSnapshot } from './snapshot';
 
 /**
  * Options for constructing a {@link Simulation} instance.
  *
  * @typeParam State - Shape of the mutable simulation state object.
  */
-export interface SimulationOptions<State> {
-  /**
-   * Fixed duration of a single simulation tick in milliseconds.
-   */
+export interface SeededSimulationOptions<State> {
   readonly timestepMs: number;
-  /**
-   * Seed used to initialize the internal random number generator.
-   */
   readonly seed: number;
-  /**
-   * Initial state of the simulation. It will be mutated in place by the
-   * {@link update} function during each tick.
-   */
   readonly initialState: State;
-  /**
-   * Function invoked on every tick of the simulation. It receives the current
-   * state, a deterministic random number generator and the fixed timestep in
-   * milliseconds.
-   */
   readonly update: (state: State, rng: Rng, deltaMs: number) => void;
 }
+
+export interface SnapshotSimulationOptions<State> {
+  readonly timestepMs: number;
+  readonly snapshot: SimulationSnapshot<State>;
+  readonly update: (state: State, rng: Rng, deltaMs: number) => void;
+}
+
+export type SimulationOptions<State> =
+  | SeededSimulationOptions<State>
+  | SnapshotSimulationOptions<State>;
 
 /**
  * Runs a simulation loop with a fixed timestep and deterministic random number
@@ -41,13 +37,21 @@ export class Simulation<State> {
   private readonly rng: Rng;
   private readonly state: State;
   private timer: ReturnType<typeof setInterval> | null = null;
-  private tickCount = 0;
+  private tickCount: number;
+  private accumulator = 0;
 
   constructor(options: SimulationOptions<State>) {
     this.timestepMs = options.timestepMs;
     this.update = options.update;
-    this.rng = createRng(options.seed);
-    this.state = options.initialState;
+    if ('snapshot' in options) {
+      this.rng = createRngFromState(options.snapshot.rngState);
+      this.state = options.snapshot.state;
+      this.tickCount = options.snapshot.tick;
+    } else {
+      this.rng = createRng(options.seed);
+      this.state = options.initialState;
+      this.tickCount = 0;
+    }
   }
 
   /**
@@ -58,7 +62,13 @@ export class Simulation<State> {
     if (this.timer !== null) {
       return;
     }
-    this.timer = setInterval(() => this.advance(), this.timestepMs);
+    let last = Date.now();
+    this.timer = setInterval(() => {
+      const now = Date.now();
+      const delta = now - last;
+      last = now;
+      this.frame(delta);
+    }, this.timestepMs / 2);
   }
 
   /**
@@ -78,11 +88,17 @@ export class Simulation<State> {
    *
    * @param steps - Number of fixed ticks to process.
    */
-  advance(steps = 1): void {
-    for (let i = 0; i < steps; i++) {
+  frame(elapsedMs: number): void {
+    this.accumulator += elapsedMs;
+    while (this.accumulator >= this.timestepMs) {
       this.update(this.state, this.rng, this.timestepMs);
+      this.accumulator -= this.timestepMs;
       this.tickCount += 1;
     }
+  }
+
+  advance(steps = 1): void {
+    this.frame(this.timestepMs * steps);
   }
 
   /**
@@ -98,4 +114,20 @@ export class Simulation<State> {
   get tick(): number {
     return this.tickCount;
   }
+
+  snapshot(): SimulationSnapshot<State> {
+    return {
+      tick: this.tickCount,
+      rngState: this.rng.getState(),
+      state: structuredClone(this.state),
+    };
+  }
+}
+
+export function deserializeSimulation<State>(
+  json: string,
+  options: Omit<SnapshotSimulationOptions<State>, 'snapshot'>,
+): Simulation<State> {
+  const snapshot = deserializeSnapshot<State>(json);
+  return new Simulation<State>({ ...options, snapshot });
 }
