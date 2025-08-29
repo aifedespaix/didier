@@ -5,11 +5,11 @@ definePageMeta({
   layout: 'default',
 })
 
-const online = useOnline()
+const _online = useOnline()
 </script>
 
 <template>
-    <ClientOnly>
-      <ThreeViewport class="h-full w-full" />
-    </ClientOnly>
+  <ClientOnly>
+    <ThreeViewport class="h-full w-full" />
+  </ClientOnly>
 </template>
