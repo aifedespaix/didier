@@ -56,7 +56,7 @@ export function createThreeApp(canvas: HTMLCanvasElement, container: HTMLElement
     ultimate: null,
   })
 
-  const input = new InputMap(hero)
+  const input = new InputMap(hero, { element: canvas, camera, origin: player.mesh })
   const casting = new CastingSystem(hero)
 
   const ground = createGround()
