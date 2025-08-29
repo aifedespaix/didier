@@ -8,6 +8,7 @@ export interface CircleAoeConfig {
   range: number
   delay: number
   damage: number
+  recovery: number
 }
 
 /**
@@ -19,11 +20,13 @@ export class CircleAoeAbility extends AbilityBase {
     private readonly damageSystem: DamageSystem,
     private readonly config: CircleAoeConfig,
   ) {
-    super('circle-aoe', 'Circle AOE', 6, config.range)
+    super('circle-aoe', 'Circle AOE', 6, config.range, config.recovery)
   }
 
   override onCommit(context: AbilityContext): void {
     super.onCommit(context)
+    if (this.state !== AbilityState.Casting)
+      return
     setTimeout(() => {
       const entities = this.collision.queryCircle(context.target, this.config.radius)
       entities.forEach(e => e.health && this.damageSystem.damage(e.health, this.config.damage))

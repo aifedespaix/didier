@@ -4,15 +4,18 @@
     "length": 4,
     "damage": 20,
     "knockbackNear": 3,
-    "knockbackFar": 1
+    "knockbackFar": 1,
+    "recovery": 0.5
   },
   "dash": {
-    "distance": 2
+    "distance": 2,
+    "recovery": 0.3
   },
   "circle-aoe": {
     "radius": 2,
     "range": 6,
     "delay": 0.5,
-    "damage": 30
+    "damage": 30,
+    "recovery": 0.7
   }
 }
