@@ -7,6 +7,7 @@ import { RectPushAbility } from './engine/abilities/impl/RectPushAbility'
 import abilitiesConfig from './engine/config/balance/abilities.json'
 import { Hero } from './engine/hero/Hero'
 import { InputMap } from './engine/input/InputMap'
+import type { InputBindings } from './engine/input/InputMap'
 import { CollisionService } from './engine/physics/CollisionService'
 import { CastingSystem } from './engine/systems/CastingSystem'
 import { DamageSystem } from './engine/systems/DamageSystem'
@@ -28,7 +29,11 @@ export interface ThreeApp {
 /**
  * Creates and starts the Three.js application bound to the provided canvas.
  */
-export function createThreeApp(canvas: HTMLCanvasElement, container: HTMLElement): ThreeApp {
+export function createThreeApp(
+  canvas: HTMLCanvasElement,
+  container: HTMLElement,
+  bindings?: Partial<InputBindings>,
+): ThreeApp {
   const scene = new THREE.Scene()
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
   renderer.shadowMap.enabled = true
@@ -56,7 +61,7 @@ export function createThreeApp(canvas: HTMLCanvasElement, container: HTMLElement
     ultimate: null,
   })
 
-  const input = new InputMap(hero, { element: canvas, camera, origin: player.mesh })
+  const input = new InputMap(hero, { element: canvas, camera, origin: player.mesh }, bindings)
   const casting = new CastingSystem(hero)
 
   const ground = createGround()

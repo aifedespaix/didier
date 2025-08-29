@@ -4,18 +4,19 @@ import * as THREE from 'three'
 import { raycastGround } from '../../utils/raycastGround'
 import { AbilityState, CastMode } from '../abilities/AbilityBase'
 
+export type Key = string
 export interface InputBindings {
-  primary: string
-  secondary: string
-  tertiary: string
-  ultimate: string
+  primary: Key[]
+  secondary: Key[]
+  tertiary: Key[]
+  ultimate: Key[]
 }
 
 const defaultBindings: InputBindings = {
-  primary: 'a',
-  secondary: 'z',
-  tertiary: 'e',
-  ultimate: 'r',
+  primary: ['a'],
+  secondary: ['z'],
+  tertiary: ['e'],
+  ultimate: ['r'],
 }
 
 /**
@@ -47,6 +48,18 @@ export class InputMap {
     this.hero = hero
     this.deps = deps
     this.bindings = { ...defaultBindings, ...bindings }
+
+    // Validate no duplicate key across different actions to avoid ambiguity
+    const seen = new Map<string, keyof InputBindings>()
+    for (const [slot, keys] of Object.entries(this.bindings) as [keyof InputBindings, Key[]][]) {
+      for (const key of keys) {
+        const k = key.toLowerCase()
+        const owner = seen.get(k)
+        if (owner && owner !== slot)
+          throw new Error(`Key '${k}' bound to multiple actions: '${owner}' and '${slot}'`)
+        seen.set(k, slot)
+      }
+    }
 
     this.onKeyDown = this.onKeyDown.bind(this)
     this.onKeyUp = this.onKeyUp.bind(this)
@@ -169,8 +182,8 @@ export class InputMap {
 
   /** Maps a keyboard key to an ability slot. */
   private keyToSlot(key: string): keyof InputBindings | null {
-    const entries = Object.entries(this.bindings) as [keyof InputBindings, string][]
-    const found = entries.find(([, k]) => k === key)
+    const entries = Object.entries(this.bindings) as [keyof InputBindings, Key[]][]
+    const found = entries.find(([, keys]) => Array.isArray(keys) && keys.includes(key))
     return found ? found[0] : null
   }
 }
