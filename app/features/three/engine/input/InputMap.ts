@@ -2,7 +2,7 @@ import type { Ability, AbilityContext } from '../abilities/AbilityBase'
 import type { Hero } from '../hero/Hero'
 import * as THREE from 'three'
 import { raycastGround } from '../../utils/raycastGround'
-import { CastMode } from '../abilities/AbilityBase'
+import { AbilityState, CastMode } from '../abilities/AbilityBase'
 
 export interface InputBindings {
   primary: string
@@ -79,6 +79,8 @@ export class InputMap {
     const mode = ability.mode === CastMode.Smart ? this.castMode : ability.mode
     const context = this.buildContext()
     ability.onPreview(context)
+    if (ability.state !== AbilityState.Preview)
+      return
 
     if (mode === CastMode.Normal) {
       this.activeAbility = ability
@@ -99,6 +101,8 @@ export class InputMap {
     if (mode !== CastMode.Quick)
       return
 
+    if (ability.state !== AbilityState.Preview)
+      return
     const context = this.buildContext()
     if (this.isWithinRange(ability, context))
       ability.onCommit(context)

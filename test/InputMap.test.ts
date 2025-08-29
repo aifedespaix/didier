@@ -12,8 +12,8 @@ class DummyAbility extends AbilityBase {
   previewContext: AbilityContext | null = null
   commitContext: AbilityContext | null = null
 
-  constructor(mode: CastMode, range: number) {
-    super('dummy', 'Dummy', 0, range)
+  constructor(mode: CastMode, range: number, recovery = 0) {
+    super('dummy', 'Dummy', 0, range, recovery)
     this.mode = mode
   }
 

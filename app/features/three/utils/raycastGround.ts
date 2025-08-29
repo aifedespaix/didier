@@ -14,6 +14,7 @@ export function raycastGround(
   groundY = 0,
 ): THREE.Vector3 | null {
   const raycaster = new THREE.Raycaster()
+  camera.updateMatrixWorld()
   raycaster.setFromCamera(ndc, camera)
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -groundY)
   const point = new THREE.Vector3()

@@ -10,6 +10,7 @@ export interface RectPushConfig {
   damage: number
   knockbackNear: number
   knockbackFar: number
+  recovery: number
 }
 
 /**
@@ -22,11 +23,13 @@ export class RectPushAbility extends AbilityBase {
     private readonly damageSystem: DamageSystem,
     private readonly config: RectPushConfig,
   ) {
-    super('rect-push', 'Rect Push', 4, config.length)
+    super('rect-push', 'Rect Push', 4, config.length, config.recovery)
   }
 
   override onCommit(context: AbilityContext): void {
     super.onCommit(context)
+    if (this.state !== AbilityState.Casting)
+      return
     const forward = new THREE.Vector3().subVectors(context.target, context.origin).normalize()
     const entities = this.collision.queryRectangle(context.origin, forward, this.config.length, this.config.width)
     entities.forEach(e => this.applyEffect(e, context.origin))
