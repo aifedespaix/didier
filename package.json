@@ -44,6 +44,8 @@
     "vite": "catalog:build"
   },
   "dependencies": {
-    "taze": "catalog:build"
+    "@types/three": "catalog:dev",
+    "taze": "catalog:build",
+    "three": "catalog:frontend"
   }
 }
