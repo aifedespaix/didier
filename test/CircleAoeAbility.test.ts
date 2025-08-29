@@ -13,7 +13,7 @@ test('circle aoe triggers after delay then recovers', () => {
   const target = new THREE.Vector3()
   const enemy = new THREE.Object3D()
   enemy.position.copy(target)
-  const health = { current: 100, max: 100 }
+  const health = { current: 100, max: 100, isDead: false }
   const collision = new CollisionService([{ position: enemy.position, radius: 0.5, object: enemy, health }])
   const damage = new DamageSystem()
   const ability = new CircleAoeAbility(collision, damage, config['circle-aoe'])
@@ -36,7 +36,7 @@ test('circle aoe cancels before impact', () => {
   const target = new THREE.Vector3()
   const enemy = new THREE.Object3D()
   enemy.position.copy(target)
-  const health = { current: 100, max: 100 }
+  const health = { current: 100, max: 100, isDead: false }
   const collision = new CollisionService([{ position: enemy.position, radius: 0.5, object: enemy, health }])
   const damage = new DamageSystem()
   const ability = new CircleAoeAbility(collision, damage, config['circle-aoe'])

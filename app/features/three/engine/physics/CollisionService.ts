@@ -1,10 +1,11 @@
 import * as THREE from 'three'
+import type { HealthComponent } from '../stats/HealthComponent'
 
 export interface CollisionEntity {
   position: THREE.Vector3
   radius: number
   object?: THREE.Object3D
-  health?: { current: number, max: number }
+  health?: HealthComponent
 }
 
 /**
