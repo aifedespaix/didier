@@ -1,7 +1,6 @@
-
 # AGENTS.md
 
-> Guide opérationnel pour les agents IA de code intervenant sur ce dépôt.  
+> Guide opérationnel pour les agents IA de code intervenant sur ce dépôt.
 > Objectif : produire du code **immédiatement intégrable**, **typé**, **maintenable**, et **performant**.
 
 ---
@@ -15,4 +14,4 @@
 - Sortie attendue : **Résumé → Arborescence → Fichiers COMPLETS → Étapes d’intégration → Tests (si pertinents) → Notes**.
 - **NE PAS** ajouter de dépendances non listées. **NE PAS** toucher `server/` pour de la logique métier.
 
-[...]  # Le reste du contenu complet de l'AGENTS.md
+[...] # Le reste du contenu complet de l'AGENTS.md
