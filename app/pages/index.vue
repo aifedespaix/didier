@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ThreeViewport from '~/features/three/ThreeViewport.vue'
+
 definePageMeta({
   layout: 'home',
 })
@@ -28,5 +30,8 @@ const online = useOnline()
       </template>
     </ClientOnly>
     <InputEntry />
+    <ClientOnly>
+      <ThreeViewport class="mt-8 h-80 w-full" />
+    </ClientOnly>
   </div>
 </template>

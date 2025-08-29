@@ -9,7 +9,7 @@ export interface PlayerState {
 
 export function createPlayer(): PlayerState {
   const geometry = new THREE.BoxGeometry(0.8, 0.2, 1.2)
-  const material = new THREE.MeshStandardMaterial({ color: 0x3b82f6 })
+  const material = new THREE.MeshStandardMaterial({ color: 0x3B82F6 })
   const mesh = new THREE.Mesh(geometry, material)
   mesh.position.set(0, 0.1, 0)
   mesh.castShadow = true
@@ -21,4 +21,3 @@ export function createPlayer(): PlayerState {
     epsilon: 0.03,
   }
 }
-
