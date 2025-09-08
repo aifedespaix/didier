@@ -1,4 +1,4 @@
-import { Game } from "@/three/Game";
+import { Game } from "@/components/3d/Game";
 import Image from "next/image";
 
 export default function Home() {
