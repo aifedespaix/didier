@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Physics, RigidBody, CuboidCollider, useRapier } from "@react-three/rapier";
 import type { RigidBodyApi } from "@react-three/rapier";
@@ -19,12 +19,12 @@ function Ground({
   const SIZE_Z = 200; // Z (profondeur)
   const HALF_X = SIZE_X / 2;
   const HALF_Z = SIZE_Z / 2;
-  const WALL_THICKNESS = 0.5; // Ã©paisseur murs
+  const WALL_THICKNESS = 0.5; // épaisseur murs
   const WALL_HEIGHT = 3; // hauteur des murs visibles (m)
 
   // Couleurs
   const GROUND_COLOR = "#7c3aed"; // violet
-  const WALL_COLOR = "#4c1d95"; // violet foncÃ©
+  const WALL_COLOR = "#4c1d95"; // violet foncé
   const rmbDown = useRef(false);
   const lastUpdate = useRef(0);
 
@@ -98,7 +98,7 @@ function Ground({
       {/* Collider physique du sol */}
       <CuboidCollider args={[HALF_X, 0.1, HALF_Z]} position={[0, -0.05, 0]} />
 
-      {/* MURS (violet foncÃ©) */}
+      {/* MURS (violet foncé) */}
       {/* Nord (le long de +Z) */}
       <mesh castShadow receiveShadow position={[0, WALL_HEIGHT / 2, HALF_Z]}>
         <boxGeometry args={[SIZE_X, WALL_HEIGHT, WALL_THICKNESS]} />
@@ -149,7 +149,7 @@ function Player({
     const lv = b.linvel();
 
     if (!target) {
-      // Pas de cible â†’ stopper XZ progressivement (ici snap 0)
+      // Pas de cible → stopper XZ progressivement (ici snap 0)
       if (Math.abs(lv.x) > 0.001 || Math.abs(lv.z) > 0.001) {
         b.setLinvel({ x: 0, y: lv.y, z: 0 }, true);
       }
@@ -167,7 +167,7 @@ function Player({
     const nz = dz / dist;
     b.setLinvel({ x: nx * speed, y: lv.y, z: nz * speed }, true);
 
-    // Orientation visuelle vers la direction de dÃ©placement (lissÃ©e)
+    // Orientation visuelle vers la direction de déplacement (lissée)
     const v2 = lv.x * lv.x + lv.z * lv.z;
     if (visual.current && v2 > 1e-4) {
       const targetYaw = Math.atan2(lv.x, lv.z); // 0 = +Z
@@ -175,7 +175,7 @@ function Player({
         new Vector3(0, 1, 0),
         targetYaw
       );
-      const rotSmoothing = 12; // plus haut = plus rÃ©actif
+      const rotSmoothing = 12; // plus haut = plus réactif
       const alpha = 1 - Math.exp(-rotSmoothing * dt);
       visual.current.quaternion.slerp(targetQ, alpha);
     }
@@ -188,16 +188,16 @@ function Player({
       enabledRotations={[false, false, false]}
     >
       {/* Collider du joueur pour rester au sol */}
-      <CuboidCollider args={[0.5, 1.0, 0.2]} />
-      {/* Visuel: cube + flÃ¨che frontale pour indiquer l'orientation */}
+      <CuboidCollider args={[0.5, 0.5, 0.5]} />
+      {/* Visuel: cube + flèche frontale pour indiquer l'orientation */}
       <group ref={visual}>
         <mesh castShadow>
-          <boxGeometry args={[1.0, 2.0, 0.4]} />
+          <boxGeometry args={[1, 1, 1]} />
           <meshStandardMaterial color="#67e8f9" />
         </mesh>
-        {/* FlÃ¨che en faÃ§ade (+Z) */}
-        <mesh castShadow position={[0, 1.2, 0.35]}>
-          <coneGeometry args={[0.18, 0.36, 12]} />
+        {/* Flèche en façade (+Z) */}
+        <mesh castShadow position={[0, 0.6, 0.7]}>
+          <coneGeometry args={[0.2, 0.4, 12]} />
           <meshStandardMaterial color="#22d3ee" />
         </mesh>
       </group>
@@ -211,12 +211,12 @@ function Obstacles() {
     () => [
       {
         pos: [-8, -5] as [number, number],
-        size: [2, 1.5, 2] as [number, number, number],
+        size: [2, 1, 2] as [number, number, number],
         color: "#6d28d9",
       },
       {
         pos: [6, -6] as [number, number],
-        size: [3, 1.5, 1.5] as [number, number, number],
+        size: [3, 1, 1.5] as [number, number, number],
         color: "#7e22ce",
       },
       {
@@ -226,17 +226,17 @@ function Obstacles() {
       },
       {
         pos: [-12, 8] as [number, number],
-        size: [4, 1.5, 1] as [number, number, number],
+        size: [4, 1, 1] as [number, number, number],
         color: "#5b21b6",
       },
       {
         pos: [3, 9] as [number, number],
-        size: [1, 1.5, 3] as [number, number, number],
+        size: [1, 2, 3] as [number, number, number],
         color: "#7c3aed",
       },
       {
         pos: [-5, 12] as [number, number],
-        size: [2, 1.5, 3] as [number, number, number],
+        size: [2, 1, 3] as [number, number, number],
         color: "#6d28d9",
       },
     ],
@@ -385,7 +385,7 @@ export function Game() {
         shadows
         onCreated={({ scene, gl }) => {
           scene.background = new Color("#0e0f13");
-          // DÃ©sactive le menu contextuel natif sur le canvas (right-click)
+          // Désactive le menu contextuel natif sur le canvas (right-click)
           gl.domElement.addEventListener("contextmenu", (e) =>
             e.preventDefault()
           );
@@ -413,7 +413,7 @@ export function Game() {
         />
       </Canvas>
 
-      {/* HUD: Ã©tat camÃ©ra */}
+      {/* HUD: état caméra */}
       <div
         style={{
           position: "absolute",
@@ -429,7 +429,7 @@ export function Game() {
       >
         <div>Camera follow: {camFollow ? "ON" : "OFF"}</div>
         <div>Zoom: {zoomLevel + 1} / 5</div>
-        <div style={{ opacity: 0.8 }}>Toggle: L Â· Zoom: Wheel</div>
+        <div style={{ opacity: 0.8 }}>Toggle: L · Zoom: Wheel</div>
       </div>
     </>
   );
@@ -437,8 +437,8 @@ export function Game() {
 
 function TargetMarker({ target }: { target: MoveTarget }) {
   const group = useRef<Group | null>(null);
-  const ringMat = useRef<MeshStandardMaterial | null>(null);
-  const fillMat = useRef<MeshStandardMaterial | null>(null);
+  const ringMat = useRef<THREE.MeshStandardMaterial | null>(null);
+  const fillMat = useRef<THREE.MeshStandardMaterial | null>(null);
   const spin = useRef(0);
 
   useFrame((_s, dt) => {
@@ -472,7 +472,7 @@ function TargetMarker({ target }: { target: MoveTarget }) {
           opacity={0.65}
         />
       </mesh>
-      {/* Disque central lÃ©ger */}
+      {/* Disque central léger */}
       <mesh
         rotation-x={-Math.PI / 2}
         castShadow={false}
@@ -492,3 +492,4 @@ function TargetMarker({ target }: { target: MoveTarget }) {
     </group>
   );
 }
+
