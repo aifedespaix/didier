@@ -30,9 +30,9 @@ export interface InputProviderProps extends PropsWithChildren {
 
 export function InputProvider({ initialContext = "menu", overrides, children }: InputProviderProps) {
   // Build runtime (bus + state)
-  const busRef = useRef<InputBus>();
+  const busRef = useRef<InputBus | null>(null);
   if (!busRef.current) busRef.current = createInputBus();
-  const stateRef = useRef<InputStateStore>();
+  const stateRef = useRef<InputStateStore | null>(null);
   if (!stateRef.current) stateRef.current = createInputState(busRef.current);
 
   // Merge bindings: defaults <- persisted <- overrides
