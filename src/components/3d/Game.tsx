@@ -2,8 +2,9 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Physics, RigidBody, CuboidCollider } from "@react-three/rapier";
 import type { RigidBodyApi } from "@react-three/rapier";
-import { Color, Vector3 } from "three";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Color, Quaternion, Vector3 } from "three";
+import type { Group } from "three";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useActionEvents } from "@/3d/input/hooks";
 
 type MoveTarget = { x: number; z: number } | null;
@@ -13,41 +14,126 @@ function Ground({
 }: {
   onRightClick: (x: number, z: number) => void;
 }) {
+  // Dimensions du terrain et des murs
+  const SIZE = 40; // taille du plane (X et Z)
+  const HALF = SIZE / 2;
+  const WALL_THICKNESS = 0.5; // largeur des murs
+  const WALL_HEIGHT = 2; // hauteur des murs visibles
+
+  // Couleurs
+  const GROUND_COLOR = "#7c3aed"; // violet
+  const WALL_COLOR = "#4c1d95"; // violet foncé
+  const rmbDown = useRef(false);
+  const lastUpdate = useRef(0);
+
+  const updateFromEvent = useCallback(
+    (e: any) => {
+      const p = e.point;
+      if (p) onRightClick(p.x, p.z);
+    },
+    [onRightClick],
+  );
+
   const handlePointerDown = useCallback(
     (e: any) => {
-      // Right click only
-      if (e.button !== 2) return;
+      if (e.button !== 2) return; // Right click only
+      rmbDown.current = true;
       e.stopPropagation();
       e.preventDefault?.();
-      const p = e.point; // intersection point (Vector3)
-      onRightClick(p.x, p.z);
+      updateFromEvent(e);
     },
-    [onRightClick]
+    [updateFromEvent],
   );
+
+  const handlePointerUp = useCallback((e: any) => {
+    if (e.button === 2) rmbDown.current = false;
+  }, []);
+
+  const handlePointerMove = useCallback(
+    (e: any) => {
+      // Update only if RMB held, also confirm with native buttons bitmask when available
+      const buttons: number | undefined = e.buttons ?? e?.nativeEvent?.buttons;
+      const rmbHeld = rmbDown.current || (typeof buttons === "number" && (buttons & 2) === 2);
+      if (!rmbHeld) return;
+
+      // Throttle to ~30 Hz for perf
+      const now = performance.now();
+      if (now - lastUpdate.current < 33) return;
+      lastUpdate.current = now;
+      updateFromEvent(e);
+    },
+    [updateFromEvent],
+  );
+
+  // Safety: release RMB if pointerup happens off-mesh
+  useEffect(() => {
+    const onGlobalPointerUp = (ev: PointerEvent) => {
+      if (ev.button === 2) rmbDown.current = false;
+    };
+    window.addEventListener("pointerup", onGlobalPointerUp);
+    return () => window.removeEventListener("pointerup", onGlobalPointerUp);
+  }, []);
 
   return (
     <RigidBody type="fixed" colliders={false}>
-      {/* Visuel du sol */}
+      {/* Sol (violet) */}
       <mesh
         receiveShadow
         rotation={[-Math.PI / 2, 0, 0]}
         onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={() => {
+          // Stop drag if cursor leaves the plane
+          rmbDown.current = false;
+        }}
       >
-        <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color="#2a2d34" />
+        <planeGeometry args={[SIZE, SIZE]} />
+        <meshStandardMaterial color={GROUND_COLOR} />
       </mesh>
-      {/* Collider physique correspondant au plan */}
-      <CuboidCollider args={[20, 0.1, 20]} position={[0, -0.05, 0]} />
+
+      {/* Collider physique du sol */}
+      <CuboidCollider args={[HALF, 0.1, HALF]} position={[0, -0.05, 0]} />
+
+      {/* MURS (violet foncé) */}
+      {/* Nord (le long de +Z) */}
+      <mesh castShadow receiveShadow position={[0, WALL_HEIGHT / 2, HALF]}>
+        <boxGeometry args={[SIZE, WALL_HEIGHT, WALL_THICKNESS]} />
+        <meshStandardMaterial color={WALL_COLOR} />
+      </mesh>
+      <CuboidCollider args={[HALF, WALL_HEIGHT / 2, WALL_THICKNESS / 2]} position={[0, WALL_HEIGHT / 2, HALF]} />
+
+      {/* Sud (le long de -Z) */}
+      <mesh castShadow receiveShadow position={[0, WALL_HEIGHT / 2, -HALF]}>
+        <boxGeometry args={[SIZE, WALL_HEIGHT, WALL_THICKNESS]} />
+        <meshStandardMaterial color={WALL_COLOR} />
+      </mesh>
+      <CuboidCollider args={[HALF, WALL_HEIGHT / 2, WALL_THICKNESS / 2]} position={[0, WALL_HEIGHT / 2, -HALF]} />
+
+      {/* Est (le long de +X) */}
+      <mesh castShadow receiveShadow position={[HALF, WALL_HEIGHT / 2, 0]}>
+        <boxGeometry args={[WALL_THICKNESS, WALL_HEIGHT, SIZE]} />
+        <meshStandardMaterial color={WALL_COLOR} />
+      </mesh>
+      <CuboidCollider args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF]} position={[HALF, WALL_HEIGHT / 2, 0]} />
+
+      {/* Ouest (le long de -X) */}
+      <mesh castShadow receiveShadow position={[-HALF, WALL_HEIGHT / 2, 0]}>
+        <boxGeometry args={[WALL_THICKNESS, WALL_HEIGHT, SIZE]} />
+        <meshStandardMaterial color={WALL_COLOR} />
+      </mesh>
+      <CuboidCollider args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF]} position={[-HALF, WALL_HEIGHT / 2, 0]} />
     </RigidBody>
   );
 }
 
 function Player({ target, bodyRef }: { target: MoveTarget; bodyRef?: React.MutableRefObject<RigidBodyApi | null> }) {
   const body = bodyRef ?? useRef<RigidBodyApi | null>(null);
+  const visual = useRef<Group | null>(null);
   const speed = 4; // m/s en XZ
   const arriveRadius = 0.05; // m
 
-  useFrame(() => {
+  useFrame((_state, dt) => {
     const b = body.current;
     if (!b) return;
     const t = b.translation();
@@ -71,17 +157,68 @@ function Player({ target, bodyRef }: { target: MoveTarget; bodyRef?: React.Mutab
     const nx = dx / dist;
     const nz = dz / dist;
     b.setLinvel({ x: nx * speed, y: lv.y, z: nz * speed }, true);
+
+    // Orientation visuelle vers la direction de déplacement (lissée)
+    const v2 = lv.x * lv.x + lv.z * lv.z;
+    if (visual.current && v2 > 1e-4) {
+      const targetYaw = Math.atan2(lv.x, lv.z); // 0 = +Z
+      const targetQ = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), targetYaw);
+      const rotSmoothing = 12; // plus haut = plus réactif
+      const alpha = 1 - Math.exp(-rotSmoothing * dt);
+      visual.current.quaternion.slerp(targetQ, alpha);
+    }
   });
 
   return (
-    <RigidBody ref={body as any} position={[0, 3, 0]}>
+    <RigidBody ref={body as any} position={[0, 3, 0]} enabledRotations={[false, false, false]}>
       {/* Collider du joueur pour rester au sol */}
       <CuboidCollider args={[0.5, 0.5, 0.5]} />
-      <mesh castShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#67e8f9" />
-      </mesh>
+      {/* Visuel: cube + flèche frontale pour indiquer l'orientation */}
+      <group ref={visual}>
+        <mesh castShadow>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color="#67e8f9" />
+        </mesh>
+        {/* Flèche en façade (+Z) */}
+        <mesh castShadow position={[0, 0.6, 0.7]}>
+          <coneGeometry args={[0.2, 0.4, 12]} />
+          <meshStandardMaterial color="#22d3ee" />
+        </mesh>
+      </group>
     </RigidBody>
+  );
+}
+
+function Obstacles() {
+  // Quelques obstacles fixes (positions en XZ, tailles en XYZ)
+  const items = useMemo(
+    () => [
+      { pos: [-8, -5] as [number, number], size: [2, 1, 2] as [number, number, number], color: "#6d28d9" },
+      { pos: [6, -6] as [number, number], size: [3, 1, 1.5] as [number, number, number], color: "#7e22ce" },
+      { pos: [10, 4] as [number, number], size: [1.5, 1.5, 1.5] as [number, number, number], color: "#9333ea" },
+      { pos: [-12, 8] as [number, number], size: [4, 1, 1] as [number, number, number], color: "#5b21b6" },
+      { pos: [3, 9] as [number, number], size: [1, 2, 3] as [number, number, number], color: "#7c3aed" },
+      { pos: [-5, 12] as [number, number], size: [2, 1, 3] as [number, number, number], color: "#6d28d9" },
+    ],
+    [],
+  );
+
+  return (
+    <>
+      {items.map((o, i) => {
+        const [sx, sy, sz] = o.size;
+        const half = [sx / 2, sy / 2, sz / 2] as const;
+        return (
+          <RigidBody key={i} type="fixed" colliders={false} position={[o.pos[0], 0, o.pos[1]]}>
+            <CuboidCollider args={[half[0], half[1], half[2]]} position={[0, half[1], 0]} />
+            <mesh castShadow receiveShadow position={[0, half[1], 0]}>
+              <boxGeometry args={[sx, sy, sz]} />
+              <meshStandardMaterial color={o.color} />
+            </mesh>
+          </RigidBody>
+        );
+      })}
+    </>
   );
 }
 
@@ -197,6 +334,7 @@ export function Game() {
 
       <Physics gravity={[0, -9.81, 0]}>
         <Ground onRightClick={(x, z) => setTarget({ x, z })} />
+        <Obstacles />
         <Player target={target} bodyRef={playerRef} />
       </Physics>
 
