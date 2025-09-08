@@ -38,6 +38,11 @@ export const DEFAULT_BINDINGS: ContextBindings = {
 
     // Pause/Menu
     "Key:Escape": "ui.toggleMenu",
+
+    // Camera controls
+    "Key:KeyL": "camera.follow.toggle",
+    "Mouse:WheelUp": "camera.zoom.in",
+    "Mouse:WheelDown": "camera.zoom.out",
   },
   menu: {
     // Navigation UI
@@ -52,6 +57,8 @@ export const DEFAULT_BINDINGS: ContextBindings = {
     "Key:ArrowRight": "ui.right",
     "Mouse:WheelUp": "ui.up",
     "Mouse:WheelDown": "ui.down",
+    // Allow toggling follow camera from menu too (handy)
+    "Key:KeyL": "camera.follow.toggle",
   },
 };
 
@@ -85,4 +92,3 @@ export function mergeBindings(
   }
   return out;
 }
-

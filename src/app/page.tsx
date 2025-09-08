@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <div className="font-sans flex h-screen w-screen">
       <main className="flex-1 h-full w-full">
-        <InputProvider initialContext="menu">
+        <InputProvider initialContext="gameplay">
           <Game />
           {/* Debug panel optionally visible; lightweight */}
           <InputDebugPanel />

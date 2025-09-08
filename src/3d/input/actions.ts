@@ -20,7 +20,11 @@ export type ActionId =
   | "game.primary"
   | "game.secondary"
   | "game.look" // analog delta (dx, dy)
-  | "game.pause";
+  | "game.pause"
+  // Camera controls
+  | "camera.follow.toggle"
+  | "camera.zoom.in"
+  | "camera.zoom.out";
 
 export type ActionDomain = "ui" | "game";
 
@@ -121,7 +125,28 @@ export const ACTIONS: Record<ActionId, ActionDef> = {
     domain: "game",
     contexts: ["gameplay"],
   },
+  // Camera controls
+  "camera.follow.toggle": {
+    id: "camera.follow.toggle",
+    kind: "digital",
+    domain: "game",
+    contexts: ["gameplay"],
+    tags: ["camera"],
+  },
+  "camera.zoom.in": {
+    id: "camera.zoom.in",
+    kind: "digital",
+    domain: "game",
+    contexts: ["gameplay"],
+    tags: ["camera"],
+  },
+  "camera.zoom.out": {
+    id: "camera.zoom.out",
+    kind: "digital",
+    domain: "game",
+    contexts: ["gameplay"],
+    tags: ["camera"],
+  },
 };
 
 export const ALL_ACTION_IDS = Object.keys(ACTIONS) as ActionId[];
-
