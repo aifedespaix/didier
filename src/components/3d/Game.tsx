@@ -31,7 +31,7 @@ function Ground({
       const p = e.point;
       if (p) onRightClick(p.x, p.z);
     },
-    [onRightClick],
+    [onRightClick]
   );
 
   const handlePointerDown = useCallback(
@@ -42,7 +42,7 @@ function Ground({
       e.preventDefault?.();
       updateFromEvent(e);
     },
-    [updateFromEvent],
+    [updateFromEvent]
   );
 
   const handlePointerUp = useCallback((e: any) => {
@@ -53,7 +53,8 @@ function Ground({
     (e: any) => {
       // Update only if RMB held, also confirm with native buttons bitmask when available
       const buttons: number | undefined = e.buttons ?? e?.nativeEvent?.buttons;
-      const rmbHeld = rmbDown.current || (typeof buttons === "number" && (buttons & 2) === 2);
+      const rmbHeld =
+        rmbDown.current || (typeof buttons === "number" && (buttons & 2) === 2);
       if (!rmbHeld) return;
 
       // Throttle to ~30 Hz for perf
@@ -62,7 +63,7 @@ function Ground({
       lastUpdate.current = now;
       updateFromEvent(e);
     },
-    [updateFromEvent],
+    [updateFromEvent]
   );
 
   // Safety: release RMB if pointerup happens off-mesh
@@ -101,33 +102,51 @@ function Ground({
         <boxGeometry args={[SIZE, WALL_HEIGHT, WALL_THICKNESS]} />
         <meshStandardMaterial color={WALL_COLOR} />
       </mesh>
-      <CuboidCollider args={[HALF, WALL_HEIGHT / 2, WALL_THICKNESS / 2]} position={[0, WALL_HEIGHT / 2, HALF]} />
+      <CuboidCollider
+        args={[HALF, WALL_HEIGHT / 2, WALL_THICKNESS / 2]}
+        position={[0, WALL_HEIGHT / 2, HALF]}
+      />
 
       {/* Sud (le long de -Z) */}
       <mesh castShadow receiveShadow position={[0, WALL_HEIGHT / 2, -HALF]}>
         <boxGeometry args={[SIZE, WALL_HEIGHT, WALL_THICKNESS]} />
         <meshStandardMaterial color={WALL_COLOR} />
       </mesh>
-      <CuboidCollider args={[HALF, WALL_HEIGHT / 2, WALL_THICKNESS / 2]} position={[0, WALL_HEIGHT / 2, -HALF]} />
+      <CuboidCollider
+        args={[HALF, WALL_HEIGHT / 2, WALL_THICKNESS / 2]}
+        position={[0, WALL_HEIGHT / 2, -HALF]}
+      />
 
       {/* Est (le long de +X) */}
       <mesh castShadow receiveShadow position={[HALF, WALL_HEIGHT / 2, 0]}>
         <boxGeometry args={[WALL_THICKNESS, WALL_HEIGHT, SIZE]} />
         <meshStandardMaterial color={WALL_COLOR} />
       </mesh>
-      <CuboidCollider args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF]} position={[HALF, WALL_HEIGHT / 2, 0]} />
+      <CuboidCollider
+        args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF]}
+        position={[HALF, WALL_HEIGHT / 2, 0]}
+      />
 
       {/* Ouest (le long de -X) */}
       <mesh castShadow receiveShadow position={[-HALF, WALL_HEIGHT / 2, 0]}>
         <boxGeometry args={[WALL_THICKNESS, WALL_HEIGHT, SIZE]} />
         <meshStandardMaterial color={WALL_COLOR} />
       </mesh>
-      <CuboidCollider args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF]} position={[-HALF, WALL_HEIGHT / 2, 0]} />
+      <CuboidCollider
+        args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF]}
+        position={[-HALF, WALL_HEIGHT / 2, 0]}
+      />
     </RigidBody>
   );
 }
 
-function Player({ target, bodyRef }: { target: MoveTarget; bodyRef?: React.MutableRefObject<RigidBodyApi | null> }) {
+function Player({
+  target,
+  bodyRef,
+}: {
+  target: MoveTarget;
+  bodyRef?: React.MutableRefObject<RigidBodyApi | null>;
+}) {
   const body = bodyRef ?? useRef<RigidBodyApi | null>(null);
   const visual = useRef<Group | null>(null);
   const speed = 4; // m/s en XZ
@@ -162,7 +181,10 @@ function Player({ target, bodyRef }: { target: MoveTarget; bodyRef?: React.Mutab
     const v2 = lv.x * lv.x + lv.z * lv.z;
     if (visual.current && v2 > 1e-4) {
       const targetYaw = Math.atan2(lv.x, lv.z); // 0 = +Z
-      const targetQ = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), targetYaw);
+      const targetQ = new Quaternion().setFromAxisAngle(
+        new Vector3(0, 1, 0),
+        targetYaw
+      );
       const rotSmoothing = 12; // plus haut = plus réactif
       const alpha = 1 - Math.exp(-rotSmoothing * dt);
       visual.current.quaternion.slerp(targetQ, alpha);
@@ -170,7 +192,11 @@ function Player({ target, bodyRef }: { target: MoveTarget; bodyRef?: React.Mutab
   });
 
   return (
-    <RigidBody ref={body as any} position={[0, 3, 0]} enabledRotations={[false, false, false]}>
+    <RigidBody
+      ref={body as any}
+      position={[0, 3, 0]}
+      enabledRotations={[false, false, false]}
+    >
       {/* Collider du joueur pour rester au sol */}
       <CuboidCollider args={[0.5, 0.5, 0.5]} />
       {/* Visuel: cube + flèche frontale pour indiquer l'orientation */}
@@ -193,14 +219,38 @@ function Obstacles() {
   // Quelques obstacles fixes (positions en XZ, tailles en XYZ)
   const items = useMemo(
     () => [
-      { pos: [-8, -5] as [number, number], size: [2, 1, 2] as [number, number, number], color: "#6d28d9" },
-      { pos: [6, -6] as [number, number], size: [3, 1, 1.5] as [number, number, number], color: "#7e22ce" },
-      { pos: [10, 4] as [number, number], size: [1.5, 1.5, 1.5] as [number, number, number], color: "#9333ea" },
-      { pos: [-12, 8] as [number, number], size: [4, 1, 1] as [number, number, number], color: "#5b21b6" },
-      { pos: [3, 9] as [number, number], size: [1, 2, 3] as [number, number, number], color: "#7c3aed" },
-      { pos: [-5, 12] as [number, number], size: [2, 1, 3] as [number, number, number], color: "#6d28d9" },
+      {
+        pos: [-8, -5] as [number, number],
+        size: [2, 1, 2] as [number, number, number],
+        color: "#6d28d9",
+      },
+      {
+        pos: [6, -6] as [number, number],
+        size: [3, 1, 1.5] as [number, number, number],
+        color: "#7e22ce",
+      },
+      {
+        pos: [10, 4] as [number, number],
+        size: [1.5, 1.5, 1.5] as [number, number, number],
+        color: "#9333ea",
+      },
+      {
+        pos: [-12, 8] as [number, number],
+        size: [4, 1, 1] as [number, number, number],
+        color: "#5b21b6",
+      },
+      {
+        pos: [3, 9] as [number, number],
+        size: [1, 2, 3] as [number, number, number],
+        color: "#7c3aed",
+      },
+      {
+        pos: [-5, 12] as [number, number],
+        size: [2, 1, 3] as [number, number, number],
+        color: "#6d28d9",
+      },
     ],
-    [],
+    []
   );
 
   return (
@@ -209,8 +259,16 @@ function Obstacles() {
         const [sx, sy, sz] = o.size;
         const half = [sx / 2, sy / 2, sz / 2] as const;
         return (
-          <RigidBody key={i} type="fixed" colliders={false} position={[o.pos[0], 0, o.pos[1]]}>
-            <CuboidCollider args={[half[0], half[1], half[2]]} position={[0, half[1], 0]} />
+          <RigidBody
+            key={i}
+            type="fixed"
+            colliders={false}
+            position={[o.pos[0], 0, o.pos[1]]}
+          >
+            <CuboidCollider
+              args={[half[0], half[1], half[2]]}
+              position={[0, half[1], 0]}
+            />
             <mesh castShadow receiveShadow position={[0, half[1], 0]}>
               <boxGeometry args={[sx, sy, sz]} />
               <meshStandardMaterial color={o.color} />
@@ -236,7 +294,13 @@ interface CameraControllerProps {
   setZoomIndex: (i: number) => void;
 }
 
-function CameraController({ targetRef, follow, setFollow, zoomIndex, setZoomIndex }: CameraControllerProps) {
+function CameraController({
+  targetRef,
+  follow,
+  setFollow,
+  zoomIndex,
+  setZoomIndex,
+}: CameraControllerProps) {
   const { camera } = useThree();
 
   // Five zoom levels: 0 = far (default), 4 = close
@@ -248,7 +312,7 @@ function CameraController({ targetRef, follow, setFollow, zoomIndex, setZoomInde
       { radius: 12, pitchDeg: 56, yawDeg: 45 },
       { radius: 9, pitchDeg: 54, yawDeg: 45 }, // close (see character well)
     ],
-    [],
+    []
   );
 
   // Input bindings
@@ -260,11 +324,14 @@ function CameraController({ targetRef, follow, setFollow, zoomIndex, setZoomInde
       setZoomIndex((i) => Math.min(i + 1, presets.length - 1));
   });
   useActionEvents("camera.zoom.out", (ev) => {
-    if (ev.type === "digital" && ev.phase === "pressed") setZoomIndex((i) => Math.max(i - 1, 0));
+    if (ev.type === "digital" && ev.phase === "pressed")
+      setZoomIndex((i) => Math.max(i - 1, 0));
   });
 
   // Smooth state
-  const smoothedPos = useRef(new Vector3(camera.position.x, camera.position.y, camera.position.z));
+  const smoothedPos = useRef(
+    new Vector3(camera.position.x, camera.position.y, camera.position.z)
+  );
   const smoothedLook = useRef(new Vector3(0, 0, 0));
   const targetPos = useRef(new Vector3());
   const desiredPos = useRef(new Vector3());
@@ -288,7 +355,11 @@ function CameraController({ targetRef, follow, setFollow, zoomIndex, setZoomInde
     const offX = Math.sin(yaw) * horiz;
     const offZ = Math.cos(yaw) * horiz;
     const offY = Math.sin(pitch) * preset.radius;
-    const desired = desiredPos.current.set(target.x + offX, target.y + offY, target.z + offZ);
+    const desired = desiredPos.current.set(
+      target.x + offX,
+      target.y + offY,
+      target.z + offZ
+    );
 
     // Smooth towards desired
     smoothedPos.current.lerp(desired, alpha);
@@ -316,60 +387,62 @@ export function Game() {
   const [camFollow, setCamFollow] = useState<boolean>(true);
   const [zoomLevel, setZoomLevel] = useState<number>(0);
 
-  return (<>
-    <Canvas
-      className="w-full h-full"
-      camera={{ position: [4, 4, 6], fov: 50 }}
-      shadows
-      onCreated={({ scene, gl }) => {
-        scene.background = new Color("#0e0f13");
-        // Désactive le menu contextuel natif sur le canvas (right-click)
-        gl.domElement.addEventListener("contextmenu", (e) =>
-          e.preventDefault()
-        );
-      }}
-    >
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
+  return (
+    <>
+      <Canvas
+        className="w-full h-full"
+        camera={{ position: [4, 4, 6], fov: 50 }}
+        shadows
+        onCreated={({ scene, gl }) => {
+          scene.background = new Color("#0e0f13");
+          // Désactive le menu contextuel natif sur le canvas (right-click)
+          gl.domElement.addEventListener("contextmenu", (e) =>
+            e.preventDefault()
+          );
+        }}
+      >
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
 
-      <Physics gravity={[0, -9.81, 0]}>
-        <Ground onRightClick={(x, z) => setTarget({ x, z })} />
-        <Obstacles />
-        <Player target={target} bodyRef={playerRef} />
-      </Physics>
+        <Physics gravity={[0, -9.81, 0]}>
+          <Ground onRightClick={(x, z) => setTarget({ x, z })} />
+          <Obstacles />
+          <Player target={target} bodyRef={playerRef} />
+        </Physics>
 
-      {/* Marqueur de destination (UX) */}
-      <TargetMarker target={target} />
+        {/* Marqueur de destination (UX) */}
+        <TargetMarker target={target} />
 
-      {/* MOBA-like camera controller */}
-      <CameraController
-        targetRef={playerRef}
-        follow={camFollow}
-        setFollow={setCamFollow}
-        zoomIndex={zoomLevel}
-        setZoomIndex={setZoomLevel}
-      />
-    </Canvas>
+        {/* MOBA-like camera controller */}
+        <CameraController
+          targetRef={playerRef}
+          follow={camFollow}
+          setFollow={setCamFollow}
+          zoomIndex={zoomLevel}
+          setZoomIndex={setZoomLevel}
+        />
+      </Canvas>
 
-    {/* HUD: état caméra */}
-    <div
-      style={{
-        position: "absolute",
-        left: 12,
-        top: 12,
-        background: "rgba(0,0,0,0.55)",
-        color: "#fff",
-        padding: "6px 8px",
-        borderRadius: 6,
-        fontSize: 12,
-        pointerEvents: "none",
-      }}
-    >
-      <div>Camera follow: {camFollow ? "ON" : "OFF"}</div>
-      <div>Zoom: {zoomLevel + 1} / 5</div>
-      <div style={{ opacity: 0.8 }}>Toggle: L · Zoom: Wheel</div>
-    </div>
-  </>);
+      {/* HUD: état caméra */}
+      <div
+        style={{
+          position: "absolute",
+          left: 12,
+          top: 12,
+          background: "rgba(0,0,0,0.55)",
+          color: "#fff",
+          padding: "6px 8px",
+          borderRadius: 6,
+          fontSize: 12,
+          pointerEvents: "none",
+        }}
+      >
+        <div>Camera follow: {camFollow ? "ON" : "OFF"}</div>
+        <div>Zoom: {zoomLevel + 1} / 5</div>
+        <div style={{ opacity: 0.8 }}>Toggle: L · Zoom: Wheel</div>
+      </div>
+    </>
+  );
 }
 
 function TargetMarker({ target }: { target: MoveTarget }) {
@@ -383,15 +456,22 @@ function TargetMarker({ target }: { target: MoveTarget }) {
     spin.current += dt;
     const s = 1 + 0.08 * Math.sin(spin.current * 6);
     group.current.scale.set(s, 1, s);
-    if (ringMat.current) ringMat.current.opacity = 0.55 + 0.25 * Math.sin(spin.current * 7);
-    if (fillMat.current) fillMat.current.opacity = 0.25 + 0.2 * Math.sin(spin.current * 5 + 1.2);
+    if (ringMat.current)
+      ringMat.current.opacity = 0.55 + 0.25 * Math.sin(spin.current * 7);
+    if (fillMat.current)
+      fillMat.current.opacity = 0.25 + 0.2 * Math.sin(spin.current * 5 + 1.2);
   });
 
   if (!target) return null;
   return (
     <group ref={group} position={[target.x, 0.02, target.z]}>
       {/* Anneau principal */}
-      <mesh rotation-x={-Math.PI / 2} castShadow={false} receiveShadow={false} renderOrder={2}>
+      <mesh
+        rotation-x={-Math.PI / 2}
+        castShadow={false}
+        receiveShadow={false}
+        renderOrder={2}
+      >
         <ringGeometry args={[0.45, 0.6, 48]} />
         <meshStandardMaterial
           ref={ringMat as any}
@@ -403,7 +483,12 @@ function TargetMarker({ target }: { target: MoveTarget }) {
         />
       </mesh>
       {/* Disque central léger */}
-      <mesh rotation-x={-Math.PI / 2} castShadow={false} receiveShadow={false} renderOrder={2}>
+      <mesh
+        rotation-x={-Math.PI / 2}
+        castShadow={false}
+        receiveShadow={false}
+        renderOrder={2}
+      >
         <circleGeometry args={[0.12, 24]} />
         <meshStandardMaterial
           ref={fillMat as any}
