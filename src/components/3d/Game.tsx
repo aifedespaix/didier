@@ -1,17 +1,35 @@
-"use client";
+﻿"use client";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import type { RigidBodyApi } from "@react-three/rapier";
 import { Color } from "three";
 import { useRef, useState } from "react";
 import type { MoveTarget } from "@/types/game";
-import { Ground, Obstacles, Player, TargetMarker, CameraController, Minimap } from "@/components/3d";
+import {
+  Ground,
+  Obstacles,
+  Player,
+  TargetMarker,
+  CameraController,
+  Minimap,
+  RemotePlayer,
+} from "@/components/3d";
+import { useP2PNetwork } from "@/systems/p2p/peer.client";
 
 export function Game() {
   const [target, setTarget] = useState<MoveTarget>(null);
   const playerRef = useRef<RigidBodyApi | null>(null);
   const [camFollow, setCamFollow] = useState<boolean>(true);
   const [zoomLevel, setZoomLevel] = useState<number>(0);
+  const { peerId, ready, error, remotes, peers, room, isHost } = useP2PNetwork(
+    playerRef as any,
+    {
+      autoConnectFromQuery: true,
+      sendHz: 20,
+      room: "default",
+      readRoomFromQuery: true,
+    },
+  );
 
   return (
     <>
@@ -21,7 +39,9 @@ export function Game() {
         shadows
         onCreated={({ scene, gl }) => {
           scene.background = new Color("#0e0f13");
-          gl.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
+          gl.domElement.addEventListener("contextmenu", (e) =>
+            e.preventDefault()
+          );
         }}
       >
         <ambientLight intensity={0.5} />
@@ -31,6 +51,10 @@ export function Game() {
           <Ground onRightClick={(x, z) => setTarget({ x, z })} />
           <Obstacles />
           <Player target={target} bodyRef={playerRef} />
+          {/* Remote players (red) */}
+          {remotes.map((r) => (
+            <RemotePlayer key={r.id} state={r} />
+          ))}
         </Physics>
 
         <TargetMarker target={target} />
@@ -59,7 +83,7 @@ export function Game() {
       >
         <div>Camera follow: {camFollow ? "ON" : "OFF"}</div>
         <div>Zoom: {zoomLevel + 1} / 5</div>
-        <div style={{ opacity: 0.8 }}>Toggle: L • Zoom: Wheel</div>
+        <div style={{ opacity: 0.8 }}>Toggle: L â€¢ Zoom: Wheel</div>
       </div>
 
       {/* Minimap bottom-right */}
@@ -69,6 +93,28 @@ export function Game() {
         onSetTarget={(x, z) => setTarget({ x, z })}
         width={220}
       />
+      {/* P2P status small badge bottom-left */}
+      <div
+        style={{
+          position: "absolute",
+          left: 12,
+          bottom: 12,
+          background: "rgba(0,0,0,0.55)",
+          color: "#fff",
+          padding: "6px 8px",
+          borderRadius: 6,
+          fontSize: 12,
+          pointerEvents: "none",
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>P2P</div>
+        <div>Room: {room} {isHost ? "(host)" : ""}</div>
+        <div>My ID: {ready ? (peerId ?? "â€¦") : error ? `err: ${error}` : "â€¦"}</div>
+        <div style={{ opacity: 0.9, marginTop: 4 }}>Peers ({peers.length}):</div>
+        {peers.map((id) => (
+          <div key={id} style={{ opacity: 0.85 }}>{id}</div>
+        ))}
+      </div>
     </>
   );
 }

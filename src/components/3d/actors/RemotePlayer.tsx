@@ -1,0 +1,47 @@
+"use client";
+import { useFrame } from "@react-three/fiber";
+import { useRef } from "react";
+import type { Group } from "three";
+import { Euler, Quaternion, Vector3 } from "three";
+import type { RemotePlayerState } from "@/types/p2p";
+
+export function RemotePlayer({ state }: { state: RemotePlayerState }) {
+  const visual = useRef<Group | null>(null);
+  // Local smoothing buffers
+  const pos = useRef(new Vector3(0, 0, 0));
+  const targetPos = useRef(new Vector3(...state.p));
+  const rot = useRef(new Quaternion());
+  const targetRot = useRef(new Quaternion().setFromEuler(new Euler(0, state.y, 0)));
+
+  useFrame((_s, dt) => {
+    // Update targets from latest state
+    const [x, y, z] = state.p;
+    targetPos.current.set(x, y, z);
+    targetRot.current.setFromEuler(new Euler(0, state.y, 0));
+
+    // Smooth follow
+    const alphaPos = 1 - Math.exp(-10 * dt); // ~smooth
+    const alphaRot = 1 - Math.exp(-10 * dt);
+    pos.current.lerp(targetPos.current, alphaPos);
+    rot.current.slerp(targetRot.current, alphaRot);
+
+    if (visual.current) {
+      visual.current.position.copy(pos.current);
+      visual.current.quaternion.copy(rot.current);
+    }
+  });
+
+  return (
+    <group ref={visual}>
+      <mesh castShadow>
+        <boxGeometry args={[1.0, 2.0, 0.4]} />
+        <meshStandardMaterial color="#ef4444" />
+      </mesh>
+      <mesh castShadow position={[0, 1.2, 0.35]}>
+        <coneGeometry args={[0.18, 0.36, 12]} />
+        <meshStandardMaterial color="#b91c1c" />
+      </mesh>
+    </group>
+  );
+}
+
