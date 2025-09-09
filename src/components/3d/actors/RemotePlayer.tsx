@@ -33,6 +33,11 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
 
   return (
     <group ref={visual}>
+      {/* UX: red translucent ground ring (annulus) under remote players */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.02, 0]} receiveShadow>
+        <ringGeometry args={[0.55, 0.85, 32]} />
+        <meshStandardMaterial color="#ef4444" transparent opacity={0.45} />
+      </mesh>
       <mesh castShadow>
         <boxGeometry args={[1.0, 2.0, 0.4]} />
         <meshStandardMaterial color="#ef4444" />
@@ -44,4 +49,3 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
     </group>
   );
 }
-

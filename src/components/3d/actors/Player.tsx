@@ -131,6 +131,11 @@ export function Player({
       <CuboidCollider args={[0.5, 1.0, 0.2]} />
       {/* Visuel: box + flèche frontale */}
       <group ref={visual}>
+        {/* UX: blue translucent ground ring (annulus) under local player */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.02, 0]} receiveShadow>
+          <ringGeometry args={[0.55, 0.85, 32]} />
+          <meshStandardMaterial color="#22d3ee" transparent opacity={0.45} />
+        </mesh>
         <mesh castShadow>
           <boxGeometry args={[1.0, 2.0, 0.4]} />
           <meshStandardMaterial color="#67e8f9" />

@@ -12,7 +12,12 @@ type MinimapProps = {
   width?: number; // px
 };
 
-export function Minimap({ playerRef, target, onSetTarget, width = 220 }: MinimapProps) {
+export function Minimap({
+  playerRef,
+  target,
+  onSetTarget,
+  width = 220,
+}: MinimapProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const height = Math.round((width / WORLD.sizeX) * WORLD.sizeZ); // keep aspect 150:200
 
@@ -22,7 +27,7 @@ export function Minimap({ playerRef, target, onSetTarget, width = 220 }: Minimap
       const nz = 1 - (z + HALF.z) / WORLD.sizeZ; // invert Y for canvas
       return { px: nx * width, py: nz * height };
     },
-    [width, height],
+    [width, height]
   );
 
   const miniToWorld = useCallback(
@@ -33,7 +38,7 @@ export function Minimap({ playerRef, target, onSetTarget, width = 220 }: Minimap
       const z = (1 - ny) * WORLD.sizeZ - HALF.z;
       return { x, z };
     },
-    [width, height],
+    [width, height]
   );
 
   useEffect(() => {
@@ -134,7 +139,7 @@ export function Minimap({ playerRef, target, onSetTarget, width = 220 }: Minimap
       const world = miniToWorld(px * width, py * height);
       onSetTarget(world.x, world.z);
     },
-    [height, width, miniToWorld, onSetTarget],
+    [height, width, miniToWorld, onSetTarget]
   );
 
   return (
@@ -148,12 +153,25 @@ export function Minimap({ playerRef, target, onSetTarget, width = 220 }: Minimap
       }}
       title="Minimap (Right-click to move)"
     >
-      <canvas ref={canvasRef} width={width} height={height} onContextMenu={handleContextMenu} style={{ cursor: "crosshair", borderRadius: 12 }} />
+      <canvas
+        ref={canvasRef}
+        width={width}
+        height={height}
+        onContextMenu={handleContextMenu}
+        style={{ cursor: "crosshair", borderRadius: 12 }}
+      />
     </div>
   );
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
   const rr = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
   ctx.moveTo(x + rr, y);
@@ -167,4 +185,3 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.quadraticCurveTo(x, y, x + rr, y);
   ctx.closePath();
 }
-

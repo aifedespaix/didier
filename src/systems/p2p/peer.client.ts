@@ -36,6 +36,14 @@ export function useP2PNetwork(
   const lastYawRef = useRef(0);
   const isHostRef = useRef(false);
   const [roomName, setRoomName] = useState<string>(room);
+  const hostIdRef = useRef<string | null>(null);
+  const knownPeersRef = useRef<Set<PeerId>>(new Set());
+
+  function addKnownPeer(id: PeerId | null | undefined) {
+    if (!id) return;
+    if (id === peerId) return;
+    knownPeersRef.current.add(id);
+  }
 
   // Create Peer on mount with room host fallback
   useEffect(() => {
@@ -54,6 +62,7 @@ export function useP2PNetwork(
         }
         setRoomName(effectiveRoom);
         const hostId = `didier-room-${effectiveRoom}-hub` as const;
+        hostIdRef.current = hostId;
 
         // Attempt to become host first (use default cloud settings)
         const hostPeer = new Peer(hostId);
@@ -64,6 +73,7 @@ export function useP2PNetwork(
           isHostRef.current = true;
           setPeerId(id);
           setReady(true);
+          // As host, we may still learn peers from clients later
         });
 
         hostPeer.on("connection", (conn) => {
@@ -107,6 +117,7 @@ export function useP2PNetwork(
               const c = clientPeer.connect(hostId, { reliable: true });
               setupConnection(c);
             } catch {}
+            addKnownPeer(hostId);
             // Optional direct connect via ?peer={id}
             if (autoConnectFromQuery) {
               try {
@@ -158,6 +169,7 @@ export function useP2PNetwork(
   function setupConnection(conn: DataConnection) {
     const id = conn.peer as PeerId;
     connsRef.current.set(id, conn);
+    addKnownPeer(id);
     // Reflect peer as soon as channel is open
     if (conn.open) refreshPeersState();
     conn.on("data", (data: any) => {
@@ -197,19 +209,27 @@ export function useP2PNetwork(
         if (Array.isArray(msg.peers)) {
           for (const pid of msg.peers) {
             if (!pid || pid === myId || pid === sender) continue;
+            addKnownPeer(pid);
             connect(pid);
           }
         }
+        addKnownPeer(sender);
         break;
       }
       case "peer-join": {
-        if (msg.id && msg.id !== peerId && !connsRef.current.has(msg.id)) connect(msg.id);
+        if (msg.id) {
+          addKnownPeer(msg.id);
+          if (msg.id !== peerId && !connsRef.current.has(msg.id)) connect(msg.id);
+        }
         break;
       }
       case "peer-list": {
         if (Array.isArray(msg.peers)) {
           for (const pid of msg.peers) {
-            if (pid && pid !== peerId && !connsRef.current.has(pid)) connect(pid);
+            if (pid) {
+              addKnownPeer(pid);
+              if (pid !== peerId && !connsRef.current.has(pid)) connect(pid);
+            }
           }
         }
         break;
@@ -291,6 +311,23 @@ export function useP2PNetwork(
 
   const remoteArray = useMemo(() => Array.from(remotes.values()), [remotes]);
   const peers = peersState;
+
+  // Periodic mesh maintenance: try to connect to any known peer or host we are missing
+  useEffect(() => {
+    const id = setInterval(() => {
+      const desired = new Set<PeerId>();
+      // Add known peers
+      for (const pid of knownPeersRef.current) desired.add(pid);
+      // If we are a client, ensure we try the host
+      if (!isHostRef.current && hostIdRef.current) desired.add(hostIdRef.current as PeerId);
+      desired.delete(peerId as PeerId);
+      for (const pid of desired) {
+        if (!pid) continue;
+        if (!connsRef.current.has(pid)) connect(pid);
+      }
+    }, 2000);
+    return () => clearInterval(id);
+  }, [peerId]);
 
   return {
     ready,
