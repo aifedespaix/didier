@@ -93,7 +93,6 @@ didier/
 
 ### 6.1 Agent **Prompting**
 
-- Transformer les idées de Joan en prompts clairs, précis et actionnables.
 - Extraire les spécifications de gameplay, UI, ECS, shaders et physique.
 
 ### 6.2 Agent **Codex / Dev**
