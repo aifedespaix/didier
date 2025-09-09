@@ -1,15 +1,16 @@
 "use client";
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import { useCallback, useEffect, useRef } from "react";
+import { WORLD, HALF } from "@/config/world";
 
 export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) => void }) {
   // Dimensions du terrain et des murs (m)
-  const SIZE_X = 150; // X (largeur)
-  const SIZE_Z = 200; // Z (profondeur)
-  const HALF_X = SIZE_X / 2;
-  const HALF_Z = SIZE_Z / 2;
-  const WALL_THICKNESS = 0.5; // épaisseur murs
-  const WALL_HEIGHT = 3; // hauteur des murs visibles (m)
+  const SIZE_X = WORLD.sizeX; // X (largeur)
+  const SIZE_Z = WORLD.sizeZ; // Z (profondeur)
+  const HALF_X = HALF.x;
+  const HALF_Z = HALF.z;
+  const WALL_THICKNESS = WORLD.wallThickness; // épaisseur murs
+  const WALL_HEIGHT = WORLD.wallHeight; // hauteur des murs visibles (m)
 
   // Couleurs
   const GROUND_COLOR = "#7c3aed"; // violet
@@ -114,4 +115,3 @@ export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) 
     </RigidBody>
   );
 }
-

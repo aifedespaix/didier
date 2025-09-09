@@ -5,7 +5,7 @@ import type { RigidBodyApi } from "@react-three/rapier";
 import { Color } from "three";
 import { useRef, useState } from "react";
 import type { MoveTarget } from "@/types/game";
-import { Ground, Obstacles, Player, TargetMarker, CameraController } from "@/components/3d";
+import { Ground, Obstacles, Player, TargetMarker, CameraController, Minimap } from "@/components/3d";
 
 export function Game() {
   const [target, setTarget] = useState<MoveTarget>(null);
@@ -61,7 +61,14 @@ export function Game() {
         <div>Zoom: {zoomLevel + 1} / 5</div>
         <div style={{ opacity: 0.8 }}>Toggle: L • Zoom: Wheel</div>
       </div>
+
+      {/* Minimap bottom-right */}
+      <Minimap
+        playerRef={playerRef}
+        target={target}
+        onSetTarget={(x, z) => setTarget({ x, z })}
+        width={220}
+      />
     </>
   );
 }
-
