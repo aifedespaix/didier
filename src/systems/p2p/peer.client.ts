@@ -1,5 +1,6 @@
 "use client";
 import type { DataConnection, Peer as PeerType } from "peerjs";
+import { toast } from "sonner";
 import type { PeerId, P2PMessage, P2PStateMessage, RemotePlayerState } from "@/types/p2p";
 import type { MutableRefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +16,8 @@ export type UseP2POptions = {
   sendHz?: number;
   room?: string;
   readRoomFromQuery?: boolean;
+  notify?: boolean; // show toasts
+  debug?: boolean; // console.debug logs
 };
 
 export function useP2PNetwork(
@@ -24,7 +27,14 @@ export function useP2PNetwork(
   } | null>,
   options?: UseP2POptions,
 ) {
-  const { autoConnectFromQuery = true, sendHz = 20, room = "default", readRoomFromQuery = true } = options ?? {};
+  const {
+    autoConnectFromQuery = true,
+    sendHz = 20,
+    room = "default",
+    readRoomFromQuery = true,
+    notify = true,
+    debug = false,
+  } = options ?? {};
   const [peerId, setPeerId] = useState<PeerId | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +48,30 @@ export function useP2PNetwork(
   const [roomName, setRoomName] = useState<string>(room);
   const hostIdRef = useRef<string | null>(null);
   const knownPeersRef = useRef<Set<PeerId>>(new Set());
+  const pendingRef = useRef<Set<PeerId>>(new Set());
+  const toastCooldownRef = useRef<Map<string, number>>(new Map());
 
   function addKnownPeer(id: PeerId | null | undefined) {
     if (!id) return;
     if (id === peerId) return;
     knownPeersRef.current.add(id);
+  }
+
+  function log(...args: any[]) {
+    if (debug) console.debug("[p2p]", ...args);
+  }
+
+  function notifyOnce(key: string, message: string, type: "info" | "success" | "error" = "info", cooldownMs = 4000) {
+    if (!notify) return;
+    const nowMs = Date.now();
+    const last = toastCooldownRef.current.get(key) ?? 0;
+    if (nowMs - last < cooldownMs) return;
+    toastCooldownRef.current.set(key, nowMs);
+    try {
+      if (type === "success") toast.success(message);
+      else if (type === "error") toast.error(message);
+      else toast(message);
+    } catch {}
   }
 
   // Create Peer on mount with room host fallback
@@ -73,6 +102,8 @@ export function useP2PNetwork(
           isHostRef.current = true;
           setPeerId(id);
           setReady(true);
+          notifyOnce("room-joined", `Room '${effectiveRoom}' rejointe (host)`, "success", 6000);
+          log("host open", { id, room: effectiveRoom });
           // As host, we may still learn peers from clients later
         });
 
@@ -112,6 +143,8 @@ export function useP2PNetwork(
             isHostRef.current = false;
             setPeerId(id);
             setReady(true);
+            notifyOnce("room-joined", `Room '${effectiveRoom}' rejointe`, "success", 6000);
+            log("client open", { id, room: effectiveRoom });
             // Connect to host
             try {
               const c = clientPeer.connect(hostId, { reliable: true });
@@ -168,6 +201,15 @@ export function useP2PNetwork(
 
   function setupConnection(conn: DataConnection) {
     const id = conn.peer as PeerId;
+    // Prevent duplicate parallel connections for the same peer
+    if (connsRef.current.has(id)) {
+      const existing = connsRef.current.get(id)!;
+      if (existing !== conn) {
+        try { conn.close(); } catch {}
+        log("ignore duplicate conn from", id);
+        return;
+      }
+    }
     connsRef.current.set(id, conn);
     addKnownPeer(id);
     // Reflect peer as soon as channel is open
@@ -179,9 +221,13 @@ export function useP2PNetwork(
       refreshPeersState();
       // Send hello on open to ensure delivery
       safeSend(conn, { t: "hello" });
+      pendingRef.current.delete(id);
+      notifyOnce(`peer-open-${id}`, `Peer connecté: ${id}`, "info", 5000);
+      log("conn open", id);
     });
     conn.on("close", () => {
       connsRef.current.delete(id);
+      pendingRef.current.delete(id);
       refreshPeersState();
       if (isHostRef.current) {
         broadcast({ t: "peer-leave", id });
@@ -192,10 +238,15 @@ export function useP2PNetwork(
         next.delete(id);
         return next;
       });
+      notifyOnce(`peer-close-${id}`, `Peer déconnecté: ${id}`, "info", 5000);
+      log("conn close", id);
     });
     conn.on("error", () => {
       connsRef.current.delete(id);
+      pendingRef.current.delete(id);
       refreshPeersState();
+      notifyOnce(`peer-error-${id}`, `Erreur peer: ${id}`, "error", 8000);
+      log("conn error", id);
     });
   }
 
@@ -268,8 +319,11 @@ export function useP2PNetwork(
     if (!peer) return;
     if (otherId === peerId) return;
     if (connsRef.current.has(otherId)) return;
+    if (pendingRef.current.has(otherId)) return;
+    pendingRef.current.add(otherId);
     const conn = peer.connect(otherId, { reliable: true });
     setupConnection(conn);
+    log("dialing", otherId);
   }
 
   function broadcast(msg: P2PMessage, skipId?: PeerId) {

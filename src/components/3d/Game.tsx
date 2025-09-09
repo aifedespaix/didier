@@ -15,6 +15,7 @@ import {
   RemotePlayer,
 } from "@/components/3d";
 import { useP2PNetwork } from "@/systems/p2p/peer.client";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 export function Game() {
   const [target, setTarget] = useState<MoveTarget>(null);
