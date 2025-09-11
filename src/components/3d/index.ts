@@ -3,5 +3,7 @@ export * from "./actors/RemotePlayer";
 export * from "./camera/CameraController";
 export * from "./props/Obstacles";
 export * from "./ui/TargetMarker";
-export * from "./ui/Minimap";
+export * from "./hud/Minimap";
+export * from "./hud/ViewPanel";
+export * from "./hud/NetworkPanel";
 export * from "./world/Ground";

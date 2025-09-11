@@ -1,4 +1,5 @@
-﻿"use client";
+}
+"use client";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
 import type { RigidBodyApi } from "@react-three/rapier";
@@ -71,9 +72,24 @@ export function Game() {
         width={220}
       />
       {/* P2P status small badge bottom-left */}
-      <NetworkPanel room={room} isHost={isHost} peerId={peerId} ready={ready} error={error} peers={peers} />
-    </>
-  );
-}
-
-
+      <div
+        style={{
+          position: "absolute",
+          left: 12,
+          bottom: 12,
+          background: "rgba(0,0,0,0.55)",
+          color: "#fff",
+          padding: "6px 8px",
+          borderRadius: 6,
+          fontSize: 12,
+          pointerEvents: "none",
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>P2P</div>
+        <div>Room: {room} {isHost ? "(host)" : ""}</div>
+        <div>My ID: {ready ? (peerId ?? "…") : error ? `err: ${error}` : "…"}</div>
+        <div style={{ opacity: 0.9, marginTop: 4 }}>Peers ({peers.length}):</div>
+        {peers.map((id) => (
+          <div key={id} style={{ opacity: 0.85 }}>{id}</div>
+        ))}
+      </div>
