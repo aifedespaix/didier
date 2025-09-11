@@ -1,7 +1,12 @@
 "use client";
-import type { DataConnection, Peer as PeerType } from "peerjs";
+import type { DataConnection, Peer as PeerType, PeerJSOption } from "peerjs";
 import { toast } from "sonner";
-import type { PeerId, P2PMessage, P2PStateMessage, RemotePlayerState } from "@/types/p2p";
+import type {
+  PeerId,
+  P2PMessage,
+  P2PStateMessage,
+  RemotePlayerState,
+} from "@/types/p2p";
 import type { MutableRefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -50,6 +55,36 @@ export function useP2PNetwork(
   const knownPeersRef = useRef<Set<PeerId>>(new Set());
   const pendingRef = useRef<Set<PeerId>>(new Set());
   const toastCooldownRef = useRef<Map<string, number>>(new Map());
+  const rttRef = useRef<Map<PeerId, number>>(new Map());
+
+  function getIceConfig(): PeerJSOption["config"] | undefined {
+    // Allow overriding ICE servers via env (NEXT_PUBLIC_*).
+    //  - NEXT_PUBLIC_ICE_JSON: JSON string of RTCConfiguration.iceServers
+    //  - or discrete TURN creds: NEXT_PUBLIC_TURN_URL, NEXT_PUBLIC_TURN_USERNAME, NEXT_PUBLIC_TURN_CREDENTIAL
+    try {
+      const json = (process as any)?.env?.NEXT_PUBLIC_ICE_JSON as string | undefined;
+      if (json) {
+        const iceServers = JSON.parse(json);
+        if (Array.isArray(iceServers)) return { iceServers } as any;
+        if (iceServers && Array.isArray(iceServers.iceServers)) return iceServers as any;
+      }
+    } catch {}
+    const turnUrl = (process as any)?.env?.NEXT_PUBLIC_TURN_URL as string | undefined;
+    const turnUser = (process as any)?.env?.NEXT_PUBLIC_TURN_USERNAME as string | undefined;
+    const turnCred = (process as any)?.env?.NEXT_PUBLIC_TURN_CREDENTIAL as string | undefined;
+    if (turnUrl && turnUser && turnCred) {
+      return {
+        iceServers: [
+          { urls: ["stun:stun.l.google.com:19302", "stun:global.stun.twilio.com:3478"] },
+          { urls: turnUrl, username: turnUser, credential: turnCred },
+        ],
+      } as any;
+    }
+    // Default STUN-only (PeerJS default is fine, but we can add common STUNs)
+    return {
+      iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }],
+    } as any;
+  }
 
   function addKnownPeer(id: PeerId | null | undefined) {
     if (!id) return;
@@ -94,7 +129,7 @@ export function useP2PNetwork(
         hostIdRef.current = hostId;
 
         // Attempt to become host first (use default cloud settings)
-        const hostPeer = new Peer(hostId);
+        const hostPeer = new Peer(hostId, { config: getIceConfig() });
         peerRef.current = hostPeer;
 
         hostPeer.on("open", (id) => {
@@ -136,7 +171,7 @@ export function useP2PNetwork(
             return;
           }
           // Fallback to client mode with random id
-          const clientPeer = new Peer();
+          const clientPeer = new Peer(undefined, { config: getIceConfig() });
           peerRef.current = clientPeer;
           clientPeer.on("open", (id) => {
             if (disposed) return;
@@ -147,7 +182,7 @@ export function useP2PNetwork(
             log("client open", { id, room: effectiveRoom });
             // Connect to host
             try {
-              const c = clientPeer.connect(hostId, { reliable: true });
+              const c = clientPeer.connect(hostId, { reliable: true, metadata: { initiatedBy: id, ts: Date.now() } });
               setupConnection(c);
             } catch {}
             addKnownPeer(hostId);
@@ -205,9 +240,22 @@ export function useP2PNetwork(
     if (connsRef.current.has(id)) {
       const existing = connsRef.current.get(id)!;
       if (existing !== conn) {
-        try { conn.close(); } catch {}
-        log("ignore duplicate conn from", id);
-        return;
+        // Prefer an already-open connection, or prefer the one that is open.
+        if (existing.open && !conn.open) {
+          try { conn.close(); } catch {}
+          log("duplicate: keep existing open, drop new", id);
+          return;
+        }
+        if (!existing.open && conn.open) {
+          try { existing.close(); } catch {}
+          connsRef.current.set(id, conn);
+          log("duplicate: replace non-open with newly open", id);
+        } else {
+          // Both open or both closed. Keep the first and drop the newcomer to avoid flapping.
+          try { conn.close(); } catch {}
+          log("duplicate: drop newcomer", id);
+          return;
+        }
       }
     }
     connsRef.current.set(id, conn);
@@ -253,6 +301,20 @@ export function useP2PNetwork(
   function handleMessage(sender: PeerId, msg: P2PMessage) {
     switch (msg.t) {
       case "hello": {
+        break;
+      }
+      case "ping": {
+        // Echo back for RTT measurement
+        const conn = connsRef.current.get(sender);
+        if (conn) safeSend(conn, { t: "pong", ts: (msg as any).ts } as any);
+        break;
+      }
+      case "pong": {
+        const ts = (msg as any).ts as number | undefined;
+        if (typeof ts === "number") {
+          const rtt = Math.max(0, now() - ts);
+          rttRef.current.set(sender, rtt);
+        }
         break;
       }
       case "welcome": {
@@ -320,8 +382,20 @@ export function useP2PNetwork(
     if (otherId === peerId) return;
     if (connsRef.current.has(otherId)) return;
     if (pendingRef.current.has(otherId)) return;
+    // Deterministic dial policy to avoid glare: except for host, only the lexicographically smaller id dials.
+    const shouldDial = (() => {
+      if (otherId === hostIdRef.current) return true; // always dial host
+      if (!peerId) return true; // safe fallback
+      return peerId.localeCompare(otherId) < 0;
+    })();
+    if (!shouldDial) {
+      // Let the other side dial us; keep track so the maintenance loop won't spam.
+      pendingRef.current.add(otherId);
+      log("skip dialing (policy)", { me: peerId, otherId });
+      return;
+    }
     pendingRef.current.add(otherId);
-    const conn = peer.connect(otherId, { reliable: true });
+    const conn = peer.connect(otherId, { reliable: true, metadata: { initiatedBy: peerId, ts: Date.now() } });
     setupConnection(conn);
     log("dialing", otherId);
   }
@@ -366,6 +440,43 @@ export function useP2PNetwork(
   const remoteArray = useMemo(() => Array.from(remotes.values()), [remotes]);
   const peers = peersState;
 
+  // Periodic ping for RTT
+  useEffect(() => {
+    if (!ready) return;
+    const id = setInterval(() => {
+      for (const [, conn] of connsRef.current.entries()) {
+        if (conn.open) safeSend(conn, { t: "ping", ts: now() } as any);
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [ready]);
+
+  function pingAll() {
+    for (const [, conn] of connsRef.current.entries()) {
+      if (conn.open) safeSend(conn, { t: "ping", ts: now() } as any);
+    }
+  }
+
+  function reconnectMissing() {
+    for (const pid of knownPeersRef.current) {
+      if (!connsRef.current.has(pid)) connect(pid);
+    }
+  }
+
+  const hostId = hostIdRef.current;
+  const peersInfo = useMemo(() => {
+    const list = [] as Array<{ id: PeerId; open: boolean; rtt: number | null; lastStateDelta: number | null }>;
+    const t = now();
+    for (const id of peersState) {
+      const c = connsRef.current.get(id);
+      const rtt = rttRef.current.get(id) ?? null;
+      const st = remotes.get(id);
+      const lastStateDelta = st ? Math.max(0, t - st.last) : null;
+      list.push({ id, open: Boolean(c?.open), rtt, lastStateDelta });
+    }
+    return list;
+  }, [peersState, remotes]);
+
   // Periodic mesh maintenance: try to connect to any known peer or host we are missing
   useEffect(() => {
     const id = setInterval(() => {
@@ -392,5 +503,9 @@ export function useP2PNetwork(
     peers,
     room: roomName,
     isHost: isHostRef.current,
+    hostId,
+    peersInfo,
+    reconnectMissing,
+    pingAll,
   } as const;
 }

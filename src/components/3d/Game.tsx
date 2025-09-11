@@ -14,7 +14,7 @@ export function Game() {
   const playerRef = useRef<RigidBodyApi | null>(null);
   const [camFollow, setCamFollow] = useState<boolean>(true);
   const [zoomLevel, setZoomLevel] = useState<number>(0);
-  const { peerId, ready, error, remotes, peers, room, isHost } = useP2PNetwork(
+  const { peerId, ready, error, remotes, peers, room, isHost, hostId, peersInfo, reconnectMissing, pingAll } = useP2PNetwork(
     playerRef as any,
     {
       autoConnectFromQuery: true,
@@ -71,7 +71,18 @@ export function Game() {
         width={220}
       />
       {/* P2P status small badge bottom-left */}
-      <NetworkPanel room={room} isHost={isHost} peerId={peerId} ready={ready} error={error} peers={peers} />
+      <NetworkPanel
+        room={room}
+        isHost={isHost}
+        peerId={peerId}
+        ready={ready}
+        error={error}
+        peers={peers}
+        hostId={hostId}
+        peersInfo={peersInfo as any}
+        onReconnect={reconnectMissing}
+        onPing={pingAll}
+      />
     </>
   );
 }
