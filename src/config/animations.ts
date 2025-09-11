@@ -10,7 +10,8 @@ export const CHARACTER_CLIP_HINTS: AnimClipHints = {
   // Force selection of the specific running clip
   run: ["fast_run"],
   jump: ["jump"],
-  dash: ["dash"],
+  // Map dash to the provided running slide clip
+  dash: ["running_slide"],
   // Helpful mappings for provided set (optional):
   //   standing_2h_cast_spell_01 -> cast
   //   standing_1h_magic_attack_01 -> attack

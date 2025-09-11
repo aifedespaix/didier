@@ -19,6 +19,14 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   const lastPos = useRef(new Vector3(...state.p));
   const speedRef = useRef(0);
 
+  // Keep visual offsets consistent with Player sizing
+  const VISUAL_SCALE = 1.15; // +15%
+  const VISUAL_FIT_HEIGHT = 1.8; // meters
+  const effectiveHeight = VISUAL_FIT_HEIGHT * VISUAL_SCALE;
+  const halfY = effectiveHeight / 2;
+  const baseHalfY = 1.0;
+  const scaleFactor = halfY / baseHalfY;
+
   useFrame((_s, dt) => {
     // Update targets from latest state
     const [x, y, z] = state.p;
@@ -49,12 +57,8 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   return (
     <group ref={visual}>
       {/* UX: red translucent ground ring (annulus) under remote players */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -1.02, 0]}
-        receiveShadow
-      >
-        <ringGeometry args={[0.55, 0.85, 32]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -(halfY + 0.02), 0]} receiveShadow>
+        <ringGeometry args={[0.55 * scaleFactor, 0.85 * scaleFactor, 32]} />
         <meshStandardMaterial color="#ef4444" transparent opacity={0.45} />
       </mesh>
       {/* Character visual with animations (remote) */}
@@ -62,8 +66,9 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
         getSpeed={() => speedRef.current}
         overrideState={state.a ?? null}
         clipHints={CHARACTER_CLIP_HINTS}
-        fitHeight={1.8}
-        scale={1.2}
+        fitHeight={VISUAL_FIT_HEIGHT}
+        scale={VISUAL_SCALE}
+        yOffset={-halfY}
       />
     </group>
   );

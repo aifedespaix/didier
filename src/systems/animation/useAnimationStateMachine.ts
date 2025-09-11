@@ -37,9 +37,10 @@ export function deriveClipMapFromClips(
   };
 
   (Object.keys(H) as AnimStateId[]).forEach((state) => {
-    const patterns = H[state];
-    if (!patterns) return;
-    const exclude = EXCLUDE[state] ?? [];
+    const patternsRaw = H[state];
+    if (!patternsRaw) return;
+    const patterns = patternsRaw.map((p) => normalizeName(p));
+    const exclude = (EXCLUDE[state] ?? []).map((e) => normalizeName(e));
 
     // First pass: respect exclusions
     for (let i = 0; i < norm.length; i++) {
