@@ -24,6 +24,10 @@ export type UseP2POptions = {
   notify?: boolean; // show toasts
   debug?: boolean; // console.debug logs
   getAnimOverride?: () => import("@/types/animation").AnimStateId | null;
+  // Safety controls
+  maxPeers?: number; // hard cap for concurrent peer connections (open+pending)
+  maxPending?: number; // cap for in-flight dials to avoid bursts
+  connectThrottleMs?: number; // minimum ms between dial attempts to the same peer
 };
 
 export function useP2PNetwork(
@@ -56,6 +60,7 @@ export function useP2PNetwork(
   const hostIdRef = useRef<string | null>(null);
   const knownPeersRef = useRef<Set<PeerId>>(new Set());
   const pendingRef = useRef<Set<PeerId>>(new Set());
+  const lastDialRef = useRef<Map<PeerId, number>>(new Map());
   const toastCooldownRef = useRef<Map<string, number>>(new Map());
   const rttRef = useRef<Map<PeerId, number>>(new Map());
 
@@ -274,12 +279,14 @@ export function useP2PNetwork(
       // Push an immediate state snapshot so the peer can render us ASAP
       sendStateSnapshotTo(conn);
       pendingRef.current.delete(id);
+      lastDialRef.current.delete(id);
       notifyOnce(`peer-open-${id}`, `Peer connecté: ${id}`, "info", 5000);
       log("conn open", id);
     });
     conn.on("close", () => {
       connsRef.current.delete(id);
       pendingRef.current.delete(id);
+      lastDialRef.current.delete(id);
       refreshPeersState();
       if (isHostRef.current) {
         broadcast({ t: "peer-leave", id });
@@ -296,6 +303,7 @@ export function useP2PNetwork(
     conn.on("error", () => {
       connsRef.current.delete(id);
       pendingRef.current.delete(id);
+      // Keep lastDialRef so throttle still applies briefly after an error
       refreshPeersState();
       notifyOnce(`peer-error-${id}`, `Erreur peer: ${id}`, "error", 8000);
       log("conn error", id);
@@ -389,6 +397,26 @@ export function useP2PNetwork(
     if (otherId === peerId) return;
     if (connsRef.current.has(otherId)) return;
     if (pendingRef.current.has(otherId)) return;
+    // Global capacity guard: avoid exceeding browser RTCPeerConnection limits
+    const maxPeers = Math.max(1, options?.maxPeers ?? 12);
+    const maxPending = Math.max(0, options?.maxPending ?? 6);
+    const openCount = connsRef.current.size;
+    const pendingCount = pendingRef.current.size;
+    if (openCount >= maxPeers) {
+      log("at capacity, skip dial", { otherId, openCount, maxPeers });
+      return;
+    }
+    if (pendingCount >= maxPending) {
+      log("too many pending dials, skip", { otherId, pendingCount, maxPending });
+      return;
+    }
+    // Per-peer throttle to avoid rapid re-dials
+    const throttleMs = Math.max(0, options?.connectThrottleMs ?? 2000);
+    const last = lastDialRef.current.get(otherId) ?? 0;
+    if (throttleMs > 0 && now() - last < throttleMs) {
+      log("throttled dial", { otherId, dt: Math.round(now() - last) });
+      return;
+    }
     // Deterministic dial policy to avoid glare: except for host, only the lexicographically smaller id dials.
     const shouldDial = (() => {
       if (otherId === hostIdRef.current) return true; // always dial host
@@ -401,10 +429,21 @@ export function useP2PNetwork(
       log("skip dialing (policy)", { me: peerId, otherId });
       return;
     }
-    pendingRef.current.add(otherId);
-    const conn = peer.connect(otherId, { reliable: true, metadata: { initiatedBy: peerId, ts: Date.now() } });
-    setupConnection(conn);
-    log("dialing", otherId);
+    try {
+      pendingRef.current.add(otherId);
+      lastDialRef.current.set(otherId, now());
+      const conn = peer.connect(otherId, { reliable: true, metadata: { initiatedBy: peerId, ts: Date.now() } });
+      setupConnection(conn);
+      log("dialing", otherId);
+    } catch (e: any) {
+      // If the browser refuses due to too many PeerConnections, back off.
+      pendingRef.current.delete(otherId);
+      const msg = String(e?.message ?? e);
+      if (msg.toLowerCase().includes("many peerconnections")) {
+        notifyOnce("p2p-capacity", "Limite de connexions atteinte — réduction automatique.");
+      }
+      log("dial failed", { otherId, error: msg });
+    }
   }
 
   function broadcast(msg: P2PMessage, skipId?: PeerId) {

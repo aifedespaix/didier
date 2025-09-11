@@ -56,7 +56,7 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
         getSpeed={() => speedRef.current}
         overrideState={state.a ?? null}
         clipHints={CHARACTER_CLIP_HINTS}
-        scale={1}
+        fitHeight={1.8}
       />
     </group>
   );

@@ -29,14 +29,32 @@ export function deriveClipMapFromClips(
 
   const H = { ...defaultHints, ...(hints ?? {}) };
 
+  // Soft exclusions to avoid common mis-matches
+  // e.g., prevent picking "dash" for run, or "cast attack" for idle
+  const EXCLUDE: Partial<Record<AnimStateId, string[]>> = {
+    idle: ["cast", "attack", "dash", "jump", "hit", "death"],
+    run: ["dash", "cast"],
+  };
+
   (Object.keys(H) as AnimStateId[]).forEach((state) => {
     const patterns = H[state];
     if (!patterns) return;
-    // find first clip that includes any pattern
+    const exclude = EXCLUDE[state] ?? [];
+
+    // First pass: respect exclusions
+    for (let i = 0; i < norm.length; i++) {
+      if (exclude.length && exclude.some((e) => norm[i].includes(e))) continue;
+      if (patterns.some((p) => norm[i].includes(p))) {
+        map[state] = names[i];
+        return;
+      }
+    }
+
+    // Second pass: if nothing found, fallback without exclusions
     for (let i = 0; i < norm.length; i++) {
       if (patterns.some((p) => norm[i].includes(p))) {
         map[state] = names[i];
-        break;
+        return;
       }
     }
   });
@@ -147,4 +165,3 @@ export function locomotionFromSpeed(speed: number) {
   if (speed < 2.2) return "walk" as const; // low speeds -> walk
   return "run" as const;
 }
-
