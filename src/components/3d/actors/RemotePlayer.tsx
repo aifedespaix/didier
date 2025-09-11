@@ -13,7 +13,9 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   const pos = useRef(new Vector3(0, 0, 0));
   const targetPos = useRef(new Vector3(...state.p));
   const rot = useRef(new Quaternion());
-  const targetRot = useRef(new Quaternion().setFromEuler(new Euler(0, state.y, 0)));
+  const targetRot = useRef(
+    new Quaternion().setFromEuler(new Euler(0, state.y, 0))
+  );
   const lastPos = useRef(new Vector3(...state.p));
   const speedRef = useRef(0);
 
@@ -47,7 +49,11 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   return (
     <group ref={visual}>
       {/* UX: red translucent ground ring (annulus) under remote players */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.02, 0]} receiveShadow>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -1.02, 0]}
+        receiveShadow
+      >
         <ringGeometry args={[0.55, 0.85, 32]} />
         <meshStandardMaterial color="#ef4444" transparent opacity={0.45} />
       </mesh>
@@ -57,6 +63,7 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
         overrideState={state.a ?? null}
         clipHints={CHARACTER_CLIP_HINTS}
         fitHeight={1.8}
+        scale={1.2}
       />
     </group>
   );

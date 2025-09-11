@@ -187,6 +187,7 @@ export function Player({
           overrideState={overrideAnim}
           // Make visual fit inside 2m collider (slightly shorter for margin)
           fitHeight={1.8}
+          scale={1.2}
         />
       </group>
     </RigidBody>
