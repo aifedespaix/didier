@@ -4,12 +4,15 @@ import { CuboidCollider, RigidBody, useRapier } from "@react-three/rapier";
 import type { RigidBodyApi } from "@react-three/rapier";
 import { Quaternion, Vector3 } from "three";
 import type { Group } from "three";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MoveTarget } from "@/types/game";
 import { CharacterModel } from "@/components/3d/actors/CharacterModel";
 import { CHARACTER_CLIP_HINTS } from "@/config/animations";
 import { useActionEvents } from "@/3d/input/hooks";
 import type { AnimStateId } from "@/types/animation";
+import { buildDefaultCharacter } from "@/systems/character/defaults";
+import { DashSpell } from "@/systems/spells/DashSpell";
+import { useCharacterUI } from "@/stores/character-ui";
 
 export function Player({
   target,
@@ -22,9 +25,11 @@ export function Player({
 }) {
   const body = bodyRef ?? useRef<RigidBodyApi | null>(null);
   const visual = useRef<Group | null>(null);
-  const speed = 4; // m/s en XZ (course normale)
-  const DASH_SPEED = 10; // m/s en XZ (doit être > speed)
-  const DASH_DURATION_MS = 520; // durée de l'effet dash (anim + mouvement)
+  // Character configuration (speed/skin/dash)
+  const character = useMemo(() => buildDefaultCharacter(), []);
+  const speed = character.speed; // m/s en XZ (course normale)
+  const DASH_SPEED = character.dashSpeed; // m/s en XZ (doit être > speed)
+  const DASH_DURATION_MS = character.dashDurationMs; // durée de l'effet dash
   const arriveRadius = 0.05; // m
   const { world, rapier } = useRapier();
   const [overrideAnim, setOverrideAnim] = useState<AnimStateId | null>(null);
@@ -32,17 +37,16 @@ export function Player({
   // État transient du dash: direction figée et fenêtre temporelle
   const dashUntil = useRef<number>(0);
   const dashDir = useRef<{ x: number; z: number }>({ x: 0, z: 1 });
+  const dashSpell = useMemo(() => new DashSpell(), []);
+  const setHp = useCharacterUI((s) => s.setHp);
+  const setCooldownUntil = useCharacterUI((s) => s.setCooldownUntil);
+  useEffect(() => {
+    setHp(character.hp.current, character.hp.max);
+  }, [character, setHp]);
 
-  // Visual scale controls and dynamic collider sizing
-  const VISUAL_SCALE = 1.15; // +15%
-  const VISUAL_FIT_HEIGHT = 1.8; // meters
-  const effectiveHeight = VISUAL_FIT_HEIGHT * VISUAL_SCALE; // model height after scaling
-  const halfY = effectiveHeight / 2; // collider half-height
-  // Scale X/Z proportionally to height relative to the original 2.0m baseline (halfY=1.0 -> x=0.5, z=0.2)
-  const baseHalfY = 1.0;
-  const scaleFactor = halfY / baseHalfY;
-  const halfX = 0.5 * scaleFactor;
-  const halfZ = 0.2 * scaleFactor;
+  // Visual scale only (keep collider and ground ring like before)
+  const VISUAL_SCALE = character.skin.scale; // visuel
+  const VISUAL_FIT_HEIGHT = character.skin.fitHeight; // meters
 
   // Keep external ref in sync (for P2P announcer)
   useEffect(() => {
@@ -54,35 +58,26 @@ export function Player({
     if (ev.type !== "digital" || ev.phase !== "pressed") return;
     const b = body.current;
     if (!b) return;
-    // determine forward from current visual yaw (or body velocity fallback)
-    let fx = 0, fz = 1;
-    const q = visual.current?.quaternion;
-    if (q) {
-      // Forward vector (0,0,1) rotated by q.yaw
-      const yaw = new Vector3(0, 0, 1).applyQuaternion(q);
-      fx = yaw.x; fz = yaw.z;
-    } else {
-      const lv = b.linvel();
-      const len = Math.hypot(lv.x, lv.z) || 1;
-      fx = lv.x / len; fz = lv.z / len;
+    const res = dashSpell.cast(
+      {
+        body: b,
+        visualQuaternion: visual.current?.quaternion ?? null,
+        setAnimOverride: (st, duration) => {
+          setOverrideAnim(st);
+          if (overrideTimer.current) window.clearTimeout(overrideTimer.current);
+          if (duration && st) {
+            overrideTimer.current = window.setTimeout(() => setOverrideAnim(null), duration);
+          }
+        },
+      },
+      character,
+    );
+    if (res.ok && res.dash) {
+      dashDir.current.x = res.dash.dir.x;
+      dashDir.current.z = res.dash.dir.z;
+      dashUntil.current = res.dash.until;
+      setCooldownUntil("dash", performance.now() + 700);
     }
-    // Normaliser la direction
-    const len = Math.hypot(fx, fz) || 1;
-    fx /= len; fz /= len;
-
-    // Figer la direction + activer la fenêtre dash
-    dashDir.current.x = fx;
-    dashDir.current.z = fz;
-    dashUntil.current = performance.now() + DASH_DURATION_MS;
-
-    // Fixer la vélocité immédiatement (plus vite que la course)
-    const cur = b.linvel();
-    b.setLinvel({ x: fx * DASH_SPEED, y: cur.y, z: fz * DASH_SPEED }, true);
-
-    // animation override pour ~0.5s
-    setOverrideAnim("dash");
-    if (overrideTimer.current) window.clearTimeout(overrideTimer.current);
-    overrideTimer.current = window.setTimeout(() => setOverrideAnim(null), DASH_DURATION_MS);
   });
 
   useFrame((_state, dt) => {
@@ -101,7 +96,14 @@ export function Player({
     const now = performance.now();
     // Si dash actif: forcer un mouvement rectiligne avant, plus rapide que la course
     if (now < dashUntil.current) {
-      b.setLinvel({ x: dashDir.current.x * DASH_SPEED, y: lv.y, z: dashDir.current.z * DASH_SPEED }, true);
+      b.setLinvel(
+        {
+          x: dashDir.current.x * DASH_SPEED,
+          y: lv.y,
+          z: dashDir.current.z * DASH_SPEED,
+        },
+        true
+      );
     } else {
       const dx = target.x - t.x;
       const dz = target.z - t.z;
@@ -197,13 +199,17 @@ export function Player({
       position={[0, 3, 0]}
       enabledRotations={[false, false, false]}
     >
-      {/* Collider dynamique basé sur la taille visuelle */}
-      <CuboidCollider args={[halfX, halfY, halfZ]} />
+      {/* Collider du joueur (1.0 x 2.0 x 0.4 m) */}
+      <CuboidCollider args={[0.5, 1.0, 0.2]} />
       {/* Visuel */}
       <group ref={visual}>
         {/* UX: blue translucent ground ring (annulus) under local player */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -(halfY + 0.02), 0]} receiveShadow>
-          <ringGeometry args={[0.55 * scaleFactor, 0.85 * scaleFactor, 32]} />
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -1.02, 0]}
+          receiveShadow
+        >
+          <ringGeometry args={[0.55, 0.85, 32]} />
           <meshStandardMaterial color="#22d3ee" transparent opacity={0.45} />
         </mesh>
         {/* Character visual with animations */}
@@ -217,10 +223,9 @@ export function Player({
           }}
           clipHints={CHARACTER_CLIP_HINTS}
           overrideState={overrideAnim}
-          // Fit height and scale determine final model size; yOffset aligne les pieds au sol
+          // Visual size from Character skin
           fitHeight={VISUAL_FIT_HEIGHT}
           scale={VISUAL_SCALE}
-          yOffset={-halfY}
         />
       </group>
     </RigidBody>

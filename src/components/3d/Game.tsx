@@ -7,6 +7,10 @@ import { useRef, useState } from "react";
 import type { AnimStateId } from "@/types/animation";
 import type { MoveTarget } from "@/types/game";
 import { Ground, Obstacles, Player, TargetMarker, CameraController, Minimap, RemotePlayer, ViewPanel, NetworkPanel } from "@/components/3d";
+import { SpellBar } from "@/components/3d/hud/SpellBar";
+import { HealthBar } from "@/components/3d/hud/HealthBar";
+import { PingHUD } from "@/components/3d/hud/PingHUD";
+import { MenuManager } from "@/components/3d/hud/MenuModals";
 import { useP2PNetwork } from "@/systems/p2p/peer.client";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
@@ -65,6 +69,9 @@ export function Game() {
       </Canvas>
 
       <ViewPanel camFollow={camFollow} zoomLevel={zoomLevel} />
+      <SpellBar />
+      <HealthBar />
+      <MenuManager />
 
       {/* Minimap bottom-right */}
       <Minimap
@@ -86,6 +93,7 @@ export function Game() {
         onReconnect={reconnectMissing}
         onPing={pingAll}
       />
+      <PingHUD peers={peersInfo as any} />
     </>
   );
 }

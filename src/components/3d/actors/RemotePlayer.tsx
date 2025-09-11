@@ -6,6 +6,8 @@ import { Euler, Quaternion, Vector3 } from "three";
 import type { RemotePlayerState } from "@/types/p2p";
 import { CharacterModel } from "@/components/3d/actors/CharacterModel";
 import { CHARACTER_CLIP_HINTS } from "@/config/animations";
+import { useMemo } from "react";
+import { buildDefaultCharacter } from "@/systems/character/defaults";
 
 export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   const visual = useRef<Group | null>(null);
@@ -19,13 +21,10 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   const lastPos = useRef(new Vector3(...state.p));
   const speedRef = useRef(0);
 
-  // Keep visual offsets consistent with Player sizing
-  const VISUAL_SCALE = 1.15; // +15%
-  const VISUAL_FIT_HEIGHT = 1.8; // meters
-  const effectiveHeight = VISUAL_FIT_HEIGHT * VISUAL_SCALE;
-  const halfY = effectiveHeight / 2;
-  const baseHalfY = 1.0;
-  const scaleFactor = halfY / baseHalfY;
+  // Character visual config (keep ground ring like before)
+  const character = useMemo(() => buildDefaultCharacter(), []);
+  const VISUAL_SCALE = character.skin.scale;
+  const VISUAL_FIT_HEIGHT = character.skin.fitHeight;
 
   useFrame((_s, dt) => {
     // Update targets from latest state
@@ -57,8 +56,8 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   return (
     <group ref={visual}>
       {/* UX: red translucent ground ring (annulus) under remote players */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -(halfY + 0.02), 0]} receiveShadow>
-        <ringGeometry args={[0.55 * scaleFactor, 0.85 * scaleFactor, 32]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.02, 0]} receiveShadow>
+        <ringGeometry args={[0.55, 0.85, 32]} />
         <meshStandardMaterial color="#ef4444" transparent opacity={0.45} />
       </mesh>
       {/* Character visual with animations (remote) */}
@@ -68,7 +67,6 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
         clipHints={CHARACTER_CLIP_HINTS}
         fitHeight={VISUAL_FIT_HEIGHT}
         scale={VISUAL_SCALE}
-        yOffset={-halfY}
       />
     </group>
   );
