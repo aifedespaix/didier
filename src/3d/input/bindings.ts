@@ -31,6 +31,7 @@ export const DEFAULT_BINDINGS: ContextBindings = {
     // Actions
     "Mouse:Left": "game.primary",
     "Mouse:Right": "game.secondary",
+    "Key:KeyE": "game.dash",
 
     // Mouselook analog -> action game.look (résolu via Mouse:Move côté device)
     // Note: l'entrée analogique n'a pas besoin d'une entrée explicite ici,

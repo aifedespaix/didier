@@ -19,6 +19,7 @@ export type ActionId =
   | "game.sprint"
   | "game.primary"
   | "game.secondary"
+  | "game.dash"
   | "game.look" // analog delta (dx, dy)
   | "game.pause"
   // Camera controls
@@ -108,6 +109,12 @@ export const ACTIONS: Record<ActionId, ActionDef> = {
   },
   "game.secondary": {
     id: "game.secondary",
+    kind: "digital",
+    domain: "game",
+    contexts: ["gameplay"],
+  },
+  "game.dash": {
+    id: "game.dash",
     kind: "digital",
     domain: "game",
     contexts: ["gameplay"],

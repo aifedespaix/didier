@@ -2,10 +2,13 @@ export type PeerId = string;
 
 export type Vector3Tuple = [number, number, number];
 
+import type { AnimStateId } from "@/types/animation";
+
 export type P2PStateMessage = {
   t: "state";
   p: Vector3Tuple; // position [x,y,z]
   y: number; // yaw in radians
+  a?: AnimStateId | null; // optional override anim state (e.g., dash)
 };
 
 export type P2PHelloMessage = {
@@ -41,5 +44,6 @@ export type RemotePlayerState = {
   id: PeerId;
   p: Vector3Tuple;
   y: number;
+  a?: AnimStateId | null;
   last: number; // ms timestamp
 };

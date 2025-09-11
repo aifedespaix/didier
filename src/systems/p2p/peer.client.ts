@@ -23,6 +23,7 @@ export type UseP2POptions = {
   readRoomFromQuery?: boolean;
   notify?: boolean; // show toasts
   debug?: boolean; // console.debug logs
+  getAnimOverride?: () => import("@/types/animation").AnimStateId | null;
 };
 
 export function useP2PNetwork(
@@ -39,6 +40,7 @@ export function useP2PNetwork(
     readRoomFromQuery = true,
     notify = true,
     debug = false,
+    getAnimOverride,
   } = options ?? {};
   const [peerId, setPeerId] = useState<PeerId | null>(null);
   const [ready, setReady] = useState(false);
@@ -269,6 +271,8 @@ export function useP2PNetwork(
       refreshPeersState();
       // Send hello on open to ensure delivery
       safeSend(conn, { t: "hello" });
+      // Push an immediate state snapshot so the peer can render us ASAP
+      sendStateSnapshotTo(conn);
       pendingRef.current.delete(id);
       notifyOnce(`peer-open-${id}`, `Peer connecté: ${id}`, "info", 5000);
       log("conn open", id);
@@ -301,6 +305,9 @@ export function useP2PNetwork(
   function handleMessage(sender: PeerId, msg: P2PMessage) {
     switch (msg.t) {
       case "hello": {
+        // Reply with our current state snapshot so the peer can render us immediately
+        const c = connsRef.current.get(sender);
+        if (c) sendStateSnapshotTo(c);
         break;
       }
       case "ping": {
@@ -363,7 +370,7 @@ export function useP2PNetwork(
         break;
       }
       case "state": {
-        const st: RemotePlayerState = { id: sender, p: msg.p, y: msg.y, last: now() };
+        const st: RemotePlayerState = { id: sender, p: msg.p, y: msg.y, a: (msg as any).a ?? null, last: now() };
         setRemotes((prev) => {
           const next = new Map(prev);
           next.set(sender, st);
@@ -411,6 +418,19 @@ export function useP2PNetwork(
     try { conn.send(msg); } catch {}
   }
 
+  function sendStateSnapshotTo(conn: DataConnection) {
+    const b = bodyRef.current;
+    if (!b) return;
+    const tr = b.translation();
+    const lv = b.linvel();
+    const speed2 = lv.x * lv.x + lv.z * lv.z;
+    const yaw = speed2 > 1e-6 ? Math.atan2(lv.x, lv.z) : lastYawRef.current;
+    lastYawRef.current = yaw;
+    const a = getAnimOverride ? getAnimOverride() : null;
+    const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, a: a ?? undefined };
+    safeSend(conn, payload);
+  }
+
   // Periodically send local state at sendHz
   useEffect(() => {
     if (!ready) return;
@@ -427,7 +447,8 @@ export function useP2PNetwork(
           const speed2 = lv.x * lv.x + lv.z * lv.z;
           const yaw = speed2 > 1e-6 ? Math.atan2(lv.x, lv.z) : lastYawRef.current;
           lastYawRef.current = yaw;
-          const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw };
+          const a = getAnimOverride ? getAnimOverride() : null;
+          const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, a: a ?? undefined };
           broadcast(payload);
         }
       }

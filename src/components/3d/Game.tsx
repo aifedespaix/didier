@@ -4,6 +4,7 @@ import { Physics } from "@react-three/rapier";
 import type { RigidBodyApi } from "@react-three/rapier";
 import { Color } from "three";
 import { useRef, useState } from "react";
+import type { AnimStateId } from "@/types/animation";
 import type { MoveTarget } from "@/types/game";
 import { Ground, Obstacles, Player, TargetMarker, CameraController, Minimap, RemotePlayer, ViewPanel, NetworkPanel } from "@/components/3d";
 import { useP2PNetwork } from "@/systems/p2p/peer.client";
@@ -12,6 +13,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 export function Game() {
   const [target, setTarget] = useState<MoveTarget>(null);
   const playerRef = useRef<RigidBodyApi | null>(null);
+  const animOverrideRef = useRef<AnimStateId | null>(null);
   const [camFollow, setCamFollow] = useState<boolean>(true);
   const [zoomLevel, setZoomLevel] = useState<number>(0);
   const { peerId, ready, error, remotes, peers, room, isHost, hostId, peersInfo, reconnectMissing, pingAll } = useP2PNetwork(
@@ -21,6 +23,7 @@ export function Game() {
       sendHz: 20,
       room: "default",
       readRoomFromQuery: true,
+      getAnimOverride: () => animOverrideRef.current ?? null,
     },
   );
 
@@ -43,7 +46,7 @@ export function Game() {
         <Physics gravity={[0, -9.81, 0]}>
           <Ground onRightClick={(x, z) => setTarget({ x, z })} />
           <Obstacles />
-          <Player target={target} bodyRef={playerRef} />
+          <Player target={target} bodyRef={playerRef} animOverrideRef={animOverrideRef} />
           {/* Remote players (red) */}
           {remotes.map((r) => (
             <RemotePlayer key={r.id} state={r} />
