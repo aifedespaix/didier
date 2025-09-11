@@ -21,25 +21,24 @@ export function Minimap({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const height = Math.round((width / WORLD.sizeX) * WORLD.sizeZ); // keep aspect 150:200
 
+  // Map world XZ -> inner minimap pixels (0..innerW, 0..innerH)
   const worldToMini = useCallback(
-    (x: number, z: number) => {
-      const nx = (x + HALF.x) / WORLD.sizeX; // 0..1
-      const nz = 1 - (z + HALF.z) / WORLD.sizeZ; // invert Y for canvas
-      return { px: nx * width, py: nz * height };
+    (x: number, z: number, innerW: number, innerH: number) => {
+      const nx = (x + HALF.x) / WORLD.sizeX; // 0..1 (left->right)
+      const nz = (z + HALF.z) / WORLD.sizeZ; // 0..1 (top is -Z, forward moves up)
+      return { px: nx * innerW, py: nz * innerH };
     },
-    [width, height]
+    []
   );
 
-  const miniToWorld = useCallback(
-    (px: number, py: number) => {
-      const nx = Math.min(1, Math.max(0, px / width));
-      const ny = Math.min(1, Math.max(0, py / height));
-      const x = nx * WORLD.sizeX - HALF.x;
-      const z = (1 - ny) * WORLD.sizeZ - HALF.z;
-      return { x, z };
-    },
-    [width, height]
-  );
+  // Map inner minimap pixels (0..innerW, 0..innerH) -> world XZ
+  const miniToWorld = useCallback((px: number, py: number, innerW: number, innerH: number) => {
+    const nx = Math.min(1, Math.max(0, px / innerW));
+    const ny = Math.min(1, Math.max(0, py / innerH));
+    const x = nx * WORLD.sizeX - HALF.x;
+    const z = ny * WORLD.sizeZ - HALF.z;
+    return { x, z };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -88,7 +87,7 @@ export function Minimap({
       ctx.fillStyle = "#6d28d9";
       for (const o of OBSTACLE_ITEMS) {
         const x = (o.pos[0] + HALF.x) * sx;
-        const z = (HALF.z - o.pos[1]) * sz; // invert
+        const z = (o.pos[1] + HALF.z) * sz; // match world->mini orientation (top = -Z)
         const w = o.size[0] * sx;
         const h = o.size[2] * sz;
         ctx.fillRect(x - w / 2, z - h / 2, w, h);
@@ -96,9 +95,9 @@ export function Minimap({
 
       // Target marker
       if (target) {
-        const { px, py } = worldToMini(target.x, target.z);
-        const mx = 8 + px * (innerW / width);
-        const my = 8 + py * (innerH / height);
+        const { px, py } = worldToMini(target.x, target.z, innerW, innerH);
+        const mx = px;
+        const my = py;
         ctx.strokeStyle = "#22d3ee";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -110,9 +109,9 @@ export function Minimap({
       const body = playerRef.current;
       if (body) {
         const t = body.translation();
-        const { px, py } = worldToMini(t.x, t.z);
-        const mx = 8 + px * (innerW / width);
-        const my = 8 + py * (innerH / height);
+        const { px, py } = worldToMini(t.x, t.z, innerW, innerH);
+        const mx = px;
+        const my = py;
         ctx.fillStyle = "#67e8f9";
         ctx.beginPath();
         ctx.arc(mx, my, 4, 0, Math.PI * 2);
@@ -133,10 +132,12 @@ export function Minimap({
       const localX = e.clientX - rect.left;
       const localY = e.clientY - rect.top;
 
-      // Map within inner padding (8px)
-      const px = Math.min(Math.max(localX - 8, 0), width - 16) / (width - 16);
-      const py = Math.min(Math.max(localY - 8, 0), height - 16) / (height - 16);
-      const world = miniToWorld(px * width, py * height);
+      // Constrain to inner area (8px padding)
+      const innerW = width - 16;
+      const innerH = height - 16;
+      const px = Math.min(Math.max(localX - 8, 0), innerW);
+      const py = Math.min(Math.max(localY - 8, 0), innerH);
+      const world = miniToWorld(px, py, innerW, innerH);
       onSetTarget(world.x, world.z);
     },
     [height, width, miniToWorld, onSetTarget]
