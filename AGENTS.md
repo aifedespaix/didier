@@ -96,6 +96,22 @@ This separation allows **scalability, reusability, and modularity**.
 - Synchronize R3F animations and HUD feedback for consistent experiences
 - Provide **visual feedback** on key game events (collisions, scoring, respawns)
 
+### 5.3 UI Components (shadcn/ui) Workflow
+
+- Do not hand-code UI primitives that exist in shadcn/ui.
+- Install UI components via the shadcn CLI using Bun:
+
+```bash
+bun x shadcn@latest add <component_name>
+# examples (c'est bien "bun x" et pas "bunx" !!!!)
+bun x shadcn@latest add button input dialog
+bun x shadcn@latest add dropdown-menu tooltip toast
+```
+
+- Agent policy: the Dev Agent must NOT auto-install components. When it needs new UI components, it must list the exact commands for you to run (as above), then wait for your confirmation before proceeding to use/import them.
+- After you confirm installation, components are expected under `~/components/ui` (e.g., `~/components/ui/button`). The agent may then import and continue implementation.
+- Prefer theming/customization via Tailwind tokens and config over forking component code. Only wrap/extend components when necessary.
+
 ---
 
 ## 6. ⚡ Performance Optimization

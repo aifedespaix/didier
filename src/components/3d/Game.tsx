@@ -16,6 +16,7 @@ import { useP2PNetwork } from "@/systems/p2p/peer.client";
 import ProjectileManager, { type ProjectileManagerRef } from "@/components/3d/world/ProjectileManager";
 import type { P2PMessage } from "@/types/p2p";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { LoaderOverlay } from "@/components/ui/loader-overlay";
 
 export function Game() {
   // Cible de déplacement persistante vs. marqueur visuel (1s)
@@ -75,7 +76,7 @@ export function Game() {
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
 
-        <Physics gravity={[0, -9.81, 0]}>
+        <Physics gravity={[0, -9.81, 0]} maxCcdSubsteps={2} predictionDistance={0.01}>
           <Ground onRightClick={(x, z) => {
             setMoveTarget({ x, z });
             setMarkerTarget({ x, z });
@@ -159,6 +160,8 @@ export function Game() {
         onPing={pingAll}
       />
       <PingHUD peers={peersInfo as any} />
+      {/* Loading overlay (global) */}
+      <LoaderOverlay />
     </>
   );
 }

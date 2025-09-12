@@ -62,6 +62,9 @@ export function Player({
   const BASE_HALF_Y = 1.0; // baseline for 2.0m collider
   const RING_SCALE = HALF_Y / BASE_HALF_Y;
   const HEAD_Y = -1 + EFFECTIVE_HEIGHT + 0.08; // au-dessus de la tête
+  // Géométrie du collider capsule (réutilisée pour les prédictions de collision)
+  const capsuleRadius = 0.35 * RING_SCALE;
+  const capsuleHalfHeight = Math.max(0.2, HALF_Y - capsuleRadius);
 
   // Keep external ref in sync (for P2P announcer)
   useEffect(() => {
@@ -120,10 +123,55 @@ export function Player({
     const now = performance.now();
     // Dash override: s'applique même si aucune cible n'est définie
     if (now < dashUntil.current) {
-      b.setLinvel(
-        { x: dashDir.current.x * DASH_SPEED, y: lv.y, z: dashDir.current.z * DASH_SPEED },
-        true,
-      );
+      // Vitesse désirée du dash (horizontale)
+      let vx = dashDir.current.x * DASH_SPEED;
+      let vz = dashDir.current.z * DASH_SPEED;
+
+      // Prédire une collision imminente et glisser le long des obstacles
+      if (world && rapier) {
+        try {
+          const shape = new rapier.Capsule(capsuleHalfHeight, capsuleRadius);
+          const shapePos = { x: t.x, y: t.y, z: t.z } as const;
+          const shapeRot = new rapier.Quaternion(0, 0, 0, 1);
+          const shapeVel = new rapier.Vector3(vx, 0, vz);
+          const targetDistance = 0.01;
+          const lookAhead = Math.min(0.12, dt * 2 + 0.02);
+          const hit = world.castShape(
+            shapePos,
+            shapeRot,
+            shapeVel,
+            shape,
+            targetDistance,
+            lookAhead,
+            true,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            (col) => {
+              const parent = (col as any).parent && (col as any).parent();
+              return parent ? parent !== (b as any) : true;
+            },
+          );
+          if (hit) {
+            const n = hit.normal1;
+            const dot = vx * n.x + vz * n.z;
+            let sx = vx - dot * n.x;
+            let sz = vz - dot * n.z;
+            const sLen = Math.hypot(sx, sz);
+            if (sLen > 1e-4) {
+              const k = Math.min(DASH_SPEED, sLen) / sLen;
+              vx = sx * k;
+              vz = sz * k;
+            } else {
+              vx = 0;
+              vz = 0;
+            }
+          }
+        } catch {}
+      }
+
+      b.setLinvel({ x: vx, y: lv.y, z: vz }, true);
     } else {
       // Si on est en train d'incanter (sort immobile): stopper mouvement horizontal
       if (now < castingUntil.current) {
@@ -262,18 +310,20 @@ export function Player({
       ref={body as any}
       position={[0, 3, 0]}
       ccd
+      softCcdPrediction={0.5}
       canSleep={false}
       enabledRotations={[false, false, false]}
     >
       {/* Collider joueur: capsule (meilleure glisse le long des murs) */}
-      {(() => {
+      {(() => (
         // Capsule verticale: demi-hauteur (sans les calottes) et rayon
-        const radius = 0.35 * RING_SCALE;
-        const halfHeight = Math.max(0.2, HALF_Y - radius);
-        return (
-          <CapsuleCollider args={[halfHeight, radius]} friction={0} restitution={0} />
-        );
-      })()}
+        <CapsuleCollider
+          args={[capsuleHalfHeight, capsuleRadius]}
+          friction={0}
+          restitution={0}
+          contactSkin={0.02}
+        />
+      ))()}
       {/* Visuel */}
       <group ref={visual}>
         {/* UX: blue translucent ground ring (annulus) under local player */}
