@@ -22,6 +22,7 @@ export function Player({
   onCancelMove,
   onCastMagic,
   performCastRef,
+  performDashRef,
 }: {
   target: MoveTarget;
   bodyRef?: React.MutableRefObject<RigidBodyApi | null>;
@@ -32,6 +33,10 @@ export function Player({
    * Optional ref to expose a method that performs the non-mobility cast animation/lock and UI cooldown.
    */
   performCastRef?: React.MutableRefObject<(() => void) | null>;
+  /**
+   * Optional ref to expose dash trigger compliant with cast mode adapter.
+   */
+  performDashRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const body = bodyRef ?? useRef<RigidBodyApi | null>(null);
   const visual = useRef<Group | null>(null);
@@ -76,34 +81,38 @@ export function Player({
     if (animOverrideRef) animOverrideRef.current = overrideAnim;
   }, [overrideAnim, animOverrideRef]);
 
-  // Dash: force un mouvement rapide vers l'avant (plus vite que course) + anim override
-  useActionEvents("game.dash", (ev) => {
-    if (ev.type !== "digital" || ev.phase !== "pressed") return;
-    const b = body.current;
-    if (!b) return;
-    // Cancel any pending move order when dash is triggered
-    try { onCancelMove?.(); } catch {}
-    const res = dashSpell.cast(
-      {
-        body: b,
-        visualQuaternion: visual.current?.quaternion ?? null,
-        setAnimOverride: (st, duration) => {
-          setOverrideAnim(st);
-          if (overrideTimer.current) window.clearTimeout(overrideTimer.current);
-          if (duration && st) {
-            overrideTimer.current = window.setTimeout(() => setOverrideAnim(null), duration);
-          }
+  // Expose dash via ref for external input adapter (quick/semi/classic)
+  useEffect(() => {
+    if (!performDashRef) return;
+    performDashRef.current = () => {
+      const b = body.current;
+      if (!b) return;
+      try { onCancelMove?.(); } catch {}
+      const res = dashSpell.cast(
+        {
+          body: b,
+          visualQuaternion: visual.current?.quaternion ?? null,
+          setAnimOverride: (st, duration) => {
+            setOverrideAnim(st);
+            if (overrideTimer.current) window.clearTimeout(overrideTimer.current);
+            if (duration && st) {
+              overrideTimer.current = window.setTimeout(() => setOverrideAnim(null), duration);
+            }
+          },
         },
-      },
-      character,
-    );
-    if (res.ok && res.dash) {
-      dashDir.current.x = res.dash.dir.x;
-      dashDir.current.z = res.dash.dir.z;
-      dashUntil.current = res.dash.until;
-      setCooldownUntil("dash", performance.now() + 700);
-    }
-  });
+        character,
+      );
+      if (res.ok && res.dash) {
+        dashDir.current.x = res.dash.dir.x;
+        dashDir.current.z = res.dash.dir.z;
+        dashUntil.current = res.dash.until;
+        setCooldownUntil("dash", performance.now() + 700);
+      }
+    };
+    return () => {
+      performDashRef.current = null;
+    };
+  }, [performDashRef, onCancelMove, character, setCooldownUntil]);
 
   // Expose performCast via ref for external input adapters (quick/semi/classic)
   useEffect(() => {

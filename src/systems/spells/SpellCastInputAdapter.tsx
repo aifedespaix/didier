@@ -3,25 +3,31 @@ import { useEffect, useRef } from "react";
 import { useActionEvents } from "@/3d/input/hooks";
 import { useSettings } from "@/stores/settings";
 import { useCastTransient } from "@/stores/cast";
+import type { ActionId } from "@/3d/input/actions";
 
 export interface SpellCastInputAdapterProps {
-  /** Called when we should perform the primary spell cast (spawn, network, etc.) */
+  // Primary spell (e.g., Magic)
   onPerformCast: () => void;
-  /** Optional: called to play cast animation/lock movement on the player */
   onPerformCastAnim?: () => void;
+  // Dash ability should follow the same cast mode semantics
+  onPerformDash: () => void;
+  onPerformDashAnim?: () => void;
 }
 
-export function SpellCastInputAdapter({ onPerformCast, onPerformCastAnim }: SpellCastInputAdapterProps) {
+export function SpellCastInputAdapter({ onPerformCast, onPerformCastAnim, onPerformDash, onPerformDashAnim }: SpellCastInputAdapterProps) {
   const mode = useSettings((s) => s.castMode);
-  const { phase, setPhase, previewVisible, showPreview, hidePreview, cancelled, markCancelled, reset } = useCastTransient();
+  const { phase, setPhase, previewVisible, showPreview, hidePreview, cancelled, markCancelled, setArmedAction } = useCastTransient();
   const aimingRef = useRef(false);
+  const armedActionRef = useRef<ActionId | null>(null);
 
   // Helper to fully cleanup any transient state
   const cleanup = () => {
     aimingRef.current = false;
+    armedActionRef.current = null;
     hidePreview();
     setPhase("idle");
     markCancelled(false);
+    setArmedAction(null);
   };
 
   // If mode changes while in preview/aiming, cleanup
@@ -47,47 +53,65 @@ export function SpellCastInputAdapter({ onPerformCast, onPerformCastAnim }: Spel
     }
   });
 
-  // Primary spell key events
-  useActionEvents("game.spell.1", (ev) => {
-    if (ev.type !== "digital") return;
-    if (mode === "quick") {
-      if (ev.phase === "pressed") {
-        try { onPerformCastAnim?.(); } catch {}
-        try { onPerformCast(); } catch {}
-      }
-      return;
-    }
-    if (mode === "semi-quick") {
-      if (ev.phase === "pressed") {
-        showPreview();
-        setPhase("preview");
-        markCancelled(false);
-      } else if (ev.phase === "released") {
-        const wasCancelled = cancelled;
-        cleanup();
-        if (!wasCancelled) {
-          try { onPerformCastAnim?.(); } catch {}
-          try { onPerformCast(); } catch {}
+  // Generic handler factory for ability actions
+  function handleAbility(actionId: ActionId, onAnim: (() => void) | undefined, onPerform: () => void) {
+    return (ev: any) => {
+      if (ev.type !== "digital") return;
+      if (mode === "quick") {
+        if (ev.phase === "pressed") {
+          setArmedAction(actionId);
+          try { onAnim?.(); } catch {}
+          try { onPerform(); } catch {}
         }
+        return;
       }
-      return;
-    }
-    // classic
-    if (ev.phase === "pressed") {
-      aimingRef.current = true;
-      showPreview();
-      setPhase("armed");
-    }
-  });
+      if (mode === "semi-quick") {
+        if (ev.phase === "pressed") {
+          setArmedAction(actionId);
+          showPreview();
+          setPhase("preview");
+          markCancelled(false);
+        } else if (ev.phase === "released") {
+          const wasCancelled = cancelled;
+          cleanup();
+          if (!wasCancelled) {
+            try { onAnim?.(); } catch {}
+            try { onPerform(); } catch {}
+          }
+        }
+        return;
+      }
+      // classic
+      if (ev.phase === "pressed") {
+        aimingRef.current = true;
+        armedActionRef.current = actionId;
+        setArmedAction(actionId);
+        showPreview();
+        setPhase("armed");
+      }
+    };
+  }
+
+  // Primary spell key events
+  useActionEvents("game.spell.1", handleAbility("game.spell.1" as ActionId, onPerformCastAnim, onPerformCast));
+
+  // Dash ability should be handled under the same cast semantics
+  useActionEvents("game.dash", handleAbility("game.dash" as ActionId, onPerformDashAnim, onPerformDash));
 
   // In classic mode, LMB confirms, RMB cancels while aiming
   useActionEvents("game.attack", (ev) => {
     if (mode !== "classic") return;
     if (ev.type !== "digital" || ev.phase !== "pressed") return;
     if (!aimingRef.current) return;
+    const armed = armedActionRef.current;
     cleanup();
-    try { onPerformCastAnim?.(); } catch {}
-    try { onPerformCast(); } catch {}
+    if (armed === ("game.spell.1" as ActionId)) {
+      try { onPerformCastAnim?.(); } catch {}
+      try { onPerformCast(); } catch {}
+    } else if (armed === ("game.dash" as ActionId)) {
+      try { onPerformDashAnim?.(); } catch {}
+      try { onPerformDash(); } catch {}
+    }
   });
 
   // Capture RMB at the window level to cancel during aiming (and prevent move orders)

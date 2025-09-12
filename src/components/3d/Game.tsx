@@ -46,7 +46,9 @@ export function Game() {
   );
   const projRef = useRef<ProjectileManagerRef | null>(null);
   const performCastRef = useRef<(() => void) | null>(null);
+  const performDashRef = useRef<(() => void) | null>(null);
   const previewVisible = useCastTransient((s) => s.previewVisible);
+  const armedAction = useCastTransient((s) => s.armedAction);
   const [worldReady, setWorldReady] = useState(false);
 
   // Wire custom P2P messages for spells/projectiles
@@ -95,6 +97,7 @@ export function Game() {
             bodyRef={playerRef}
             animOverrideRef={animOverrideRef}
             performCastRef={performCastRef as any}
+            performDashRef={performDashRef as any}
             onCancelMove={() => setMoveTarget(null)}
             onCastMagic={() => {
               performPrimaryCast(playerRef.current, projRef.current, peerId, send);
@@ -116,7 +119,7 @@ export function Game() {
         </Physics>
 
         <TargetMarker target={markerTarget} />
-        <SpellPreview visible={previewVisible} />
+        <SpellPreview visible={previewVisible} variant={armedAction === "game.dash" ? "dash" : "spell"} />
 
         <CameraController
           targetRef={playerRef}
@@ -130,6 +133,8 @@ export function Game() {
       <SpellCastInputAdapter
         onPerformCast={() => performPrimaryCast(playerRef.current, projRef.current, peerId, send)}
         onPerformCastAnim={() => performCastRef.current?.()}
+        onPerformDash={() => performDashRef.current?.()}
+        onPerformDashAnim={undefined}
       />
 
       <ViewPanel camFollow={camFollow} zoomLevel={zoomLevel} />

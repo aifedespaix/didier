@@ -7,12 +7,13 @@ import { Group, Plane, Ray, Vector3 } from "three";
  * Minimal spell preview: a translucent rectangle projected onto the ground (y=0)
  * Follows current mouse pointer ray from camera.
  */
-export function SpellPreview({ visible }: { visible: boolean }) {
+export function SpellPreview({ visible, variant = "spell" }: { visible: boolean; variant?: "spell" | "dash" }) {
   const group = useRef<Group | null>(null);
   const { camera, raycaster, pointer } = useThree();
   const plane = useRef(new Plane(new Vector3(0, 1, 0), 0));
   const [pulse, setPulse] = useState(0);
   const tmpPoint = useRef(new Vector3());
+  const tmpDir = useRef(new Vector3());
 
   useFrame((_s, dt) => {
     if (!group.current) return;
@@ -21,8 +22,12 @@ export function SpellPreview({ visible }: { visible: boolean }) {
     try {
       raycaster.setFromCamera(pointer as any, camera);
       const ray: Ray = raycaster.ray as any;
+      tmpDir.current.copy(ray.direction);
       if (ray.intersectPlane(plane.current, tmpPoint.current)) {
         group.current.position.set(tmpPoint.current.x, 0.02, tmpPoint.current.z);
+        // Orient on XZ from ray direction
+        const yaw = Math.atan2(tmpDir.current.x, tmpDir.current.z);
+        group.current.rotation.set(0, yaw, 0);
       }
     } catch {}
     const s = 0.95 + 0.08 * Math.sin(pulse);
@@ -32,19 +37,35 @@ export function SpellPreview({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
     <group ref={group}>
-      {/* ground-aligned rectangle */}
-      <mesh rotation-x={-Math.PI / 2} castShadow={false} receiveShadow={false} renderOrder={3}>
-        <planeGeometry args={[0.9, 0.9]} />
-        <meshStandardMaterial color="#22d3ee" emissive="#0ea5b7" transparent opacity={0.35} depthWrite={false} />
-      </mesh>
-      {/* outline */}
-      <mesh rotation-x={-Math.PI / 2} castShadow={false} receiveShadow={false} renderOrder={3}>
-        <ringGeometry args={[0.45, 0.48, 32]} />
-        <meshStandardMaterial color="#22d3ee" emissive="#0891b2" transparent opacity={0.55} depthWrite={false} />
-      </mesh>
+      {variant === "spell" ? (
+        <>
+          {/* ground-aligned rectangle */}
+          <mesh rotation-x={-Math.PI / 2} castShadow={false} receiveShadow={false} renderOrder={3}>
+            <planeGeometry args={[0.9, 0.9]} />
+            <meshStandardMaterial color="#22d3ee" emissive="#0ea5b7" transparent opacity={0.35} depthWrite={false} />
+          </mesh>
+          {/* outline */}
+          <mesh rotation-x={-Math.PI / 2} castShadow={false} receiveShadow={false} renderOrder={3}>
+            <ringGeometry args={[0.45, 0.48, 32]} />
+            <meshStandardMaterial color="#22d3ee" emissive="#0891b2" transparent opacity={0.55} depthWrite={false} />
+          </mesh>
+        </>
+      ) : (
+        <>
+          {/* Dash arrow (flat on ground, oriented by pointer) */}
+          <mesh rotation-x={-Math.PI / 2} castShadow={false} receiveShadow={false} renderOrder={3} position={[0, 0.001, 0.35]}>
+            <planeGeometry args={[1.2, 0.18]} />
+            <meshStandardMaterial color="#22d3ee" emissive="#06b6d4" transparent opacity={0.35} depthWrite={false} />
+          </mesh>
+          {/* Arrow head (simple wider rectangle as placeholder) */}
+          <mesh rotation-x={-Math.PI / 2} castShadow={false} receiveShadow={false} renderOrder={3} position={[0, 0.001, 0.9]}>
+            <planeGeometry args={[0.5, 0.4]} />
+            <meshStandardMaterial color="#22d3ee" emissive="#0891b2" transparent opacity={0.55} depthWrite={false} />
+          </mesh>
+        </>
+      )}
     </group>
   );
 }
 
 export default SpellPreview;
-
