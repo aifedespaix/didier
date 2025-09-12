@@ -159,6 +159,14 @@ bun x shadcn@latest add dropdown-menu tooltip toast
 | Commits    | Follow [Conventional Commits](https://www.conventionalcommits.org/) |
 | Testing    | Use `Vitest` + `Playwright` for automated testing                   |
 
+### 8.1 Naming Conventions (Spells)
+
+- Abstract/base classes MUST live in files prefixed with an underscore `_`.
+  - Example: `src/systems/spells/_Spell.ts` defines the abstract base class for spells.
+- Concrete spell implementations inherit from the base class and live alongside it without the underscore.
+  - Example: `src/systems/spells/FireballSpell.ts` extends the base spell.
+- Keep spell configs encapsulated in their class (speed, range, radius, damage) so that behavior is consistent across all targets.
+
 ---
 
 ## 9. 🚀 AI Roadmap

@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef } from "react";
 import type { RigidBodyApi } from "@react-three/rapier";
 import { HALF, WORLD } from "@/config/world";
 import type { MoveTarget } from "@/types/game";
-import { OBSTACLE_ITEMS } from "@/components/3d/props/Obstacles";
+import { OBSTACLE_ITEMS } from "@/components/3d/props/obstacle-config";
+import { useObstacles } from "@/stores/obstacles";
 
 type MinimapProps = {
   playerRef: React.MutableRefObject<RigidBodyApi | null>;
@@ -20,6 +21,9 @@ export function Minimap({
 }: MinimapProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const height = Math.round((width / WORLD.sizeX) * WORLD.sizeZ); // keep aspect 150:200
+  const obs = useObstacles((s) => s.obstacles);
+  const aliveById = useRef<Record<string, number>>({});
+  aliveById.current = Object.fromEntries(obs.map((o) => [o.id, o.hp]));
 
   // Map world XZ -> inner minimap pixels (0..innerW, 0..innerH)
   const worldToMini = useCallback(
@@ -83,9 +87,10 @@ export function Minimap({
       ctx.lineWidth = 2;
       ctx.strokeRect(0, 0, innerW, innerH);
 
-      // Obstacles
+      // Obstacles (only alive)
       ctx.fillStyle = "#6d28d9";
       for (const o of OBSTACLE_ITEMS) {
+        if (!aliveById.current[o.id] || aliveById.current[o.id] <= 0) continue;
         const x = (o.pos[0] + HALF.x) * sx;
         const z = (o.pos[1] + HALF.z) * sz; // match world->mini orientation (top = -Z)
         const w = o.size[0] * sx;

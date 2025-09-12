@@ -64,6 +64,7 @@ export function useP2PNetwork(
   const lastDialRef = useRef<Map<PeerId, number>>(new Map());
   const toastCooldownRef = useRef<Map<string, number>>(new Map());
   const rttRef = useRef<Map<PeerId, number>>(new Map());
+  const lastStateRecvRef = useRef<Map<PeerId, number>>(new Map());
   const listenersRef = useRef<Set<(sender: PeerId, msg: P2PMessage) => void>>(new Set());
 
   function getIceConfig(): PeerJSOption["config"] | undefined {
@@ -381,6 +382,8 @@ export function useP2PNetwork(
       }
       case "state": {
         const st: RemotePlayerState = { id: sender, p: msg.p, y: msg.y, a: (msg as any).a ?? null, h: (msg as any).h ?? null, last: now() };
+        // Track last time we received state from this sender (for liveness/recovery)
+        lastStateRecvRef.current.set(sender, st.last);
         setRemotes((prev) => {
           const next = new Map(prev);
           next.set(sender, st);
@@ -458,6 +461,7 @@ export function useP2PNetwork(
   function broadcast(msg: P2PMessage, skipId?: PeerId) {
     for (const [pid, conn] of connsRef.current.entries()) {
       if (skipId && pid === skipId) continue;
+      if (!conn.open) continue;
       safeSend(conn, msg);
     }
   }
@@ -467,16 +471,25 @@ export function useP2PNetwork(
   }
 
   function sendStateSnapshotTo(conn: DataConnection) {
+    // Always send something so that remote peers can spawn us immediately
     const b = bodyRef.current;
-    if (!b) return;
-    const tr = b.translation();
-    const lv = b.linvel();
-    const speed2 = lv.x * lv.x + lv.z * lv.z;
-    const yaw = speed2 > 1e-6 ? Math.atan2(lv.x, lv.z) : lastYawRef.current;
-    lastYawRef.current = yaw;
+    let p: [number, number, number];
+    let y: number;
+    if (b) {
+      const tr = b.translation();
+      const lv = b.linvel();
+      const speed2 = lv.x * lv.x + lv.z * lv.z;
+      y = speed2 > 1e-6 ? Math.atan2(lv.x, lv.z) : lastYawRef.current;
+      lastYawRef.current = y;
+      p = [tr.x, tr.y, tr.z];
+    } else {
+      // Fallback spawn at origin with neutral yaw if physics body not ready yet
+      p = [0, 0, 0];
+      y = lastYawRef.current || 0;
+    }
     const a = getAnimOverride ? getAnimOverride() : null;
     const hp = options?.getHp ? options.getHp() : null;
-    const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, a: a ?? undefined, h: hp ? [hp.cur, hp.max] : undefined };
+    const payload: P2PStateMessage = { t: "state", p, y, a: a ?? undefined, h: hp ? [hp.cur, hp.max] : undefined };
     safeSend(conn, payload);
   }
 
@@ -516,7 +529,8 @@ export function useP2PNetwork(
     if (!ready) return;
     const id = setInterval(() => {
       for (const [, conn] of connsRef.current.entries()) {
-        if (conn.open) safeSend(conn, { t: "ping", ts: now() } as any);
+        if (!conn.open) continue;
+        safeSend(conn, { t: "ping", ts: now() } as any);
       }
     }, 5000);
     return () => clearInterval(id);
@@ -564,6 +578,23 @@ export function useP2PNetwork(
     }, 2000);
     return () => clearInterval(id);
   }, [peerId]);
+
+  // Liveness probe: if we haven't received state from a peer recently, nudge with a 'hello'
+  useEffect(() => {
+    const id = setInterval(() => {
+      const t = now();
+      for (const [pid, conn] of connsRef.current.entries()) {
+        if (!conn.open) continue;
+        const last = lastStateRecvRef.current.get(pid) ?? 0;
+        if (t - last > 2500) {
+          // Ask the peer to send a fresh snapshot; also refresh our own snapshot to them
+          safeSend(conn, { t: "hello" } as any);
+          sendStateSnapshotTo(conn);
+        }
+      }
+    }, 1500);
+    return () => clearInterval(id);
+  }, []);
 
   return {
     ready,

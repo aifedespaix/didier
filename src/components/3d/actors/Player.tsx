@@ -14,6 +14,7 @@ import type { AnimStateId } from "@/types/animation";
 import { buildDefaultCharacter } from "@/systems/character/defaults";
 import { DashSpell } from "@/systems/spells/DashSpell";
 import { useCharacterUI } from "@/stores/character-ui";
+import { useAim } from "@/stores/aim";
 
 export function Player({
   target,
@@ -60,6 +61,7 @@ export function Player({
   const lastNudgeAt = useRef<number>(0);
   const setHp = useCharacterUI((s) => s.setHp);
   const setCooldownUntil = useCharacterUI((s) => s.setCooldownUntil);
+  const aimPoint = useAim((s) => s.point);
   useEffect(() => {
     setHp(character.hp.current, character.hp.max);
   }, [character, setHp]);
@@ -88,6 +90,18 @@ export function Player({
       const b = body.current;
       if (!b) return;
       try { onCancelMove?.(); } catch {}
+      // Face aim point if available before dash
+      if (aimPoint && visual.current) {
+        const t = b.translation();
+        const dx = aimPoint[0] - t.x;
+        const dz = aimPoint[2] - t.z;
+        const len = Math.hypot(dx, dz);
+        if (len > 1e-4) {
+          const yaw = Math.atan2(dx / len, dz / len);
+          const targetQ = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw);
+          visual.current.quaternion.copy(targetQ);
+        }
+      }
       const res = dashSpell.cast(
         {
           body: b,
@@ -118,6 +132,19 @@ export function Player({
   useEffect(() => {
     if (!performCastRef) return;
     performCastRef.current = () => {
+      // Face aim point if available before casting
+      const b = body.current;
+      if (b && aimPoint && visual.current) {
+        const t = b.translation();
+        const dx = aimPoint[0] - t.x;
+        const dz = aimPoint[2] - t.z;
+        const len = Math.hypot(dx, dz);
+        if (len > 1e-4) {
+          const yaw = Math.atan2(dx / len, dz / len);
+          const targetQ = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw);
+          visual.current.quaternion.copy(targetQ);
+        }
+      }
       castingUntil.current = performance.now() + 600;
       setOverrideAnim("attack");
       if (overrideTimer.current) window.clearTimeout(overrideTimer.current);

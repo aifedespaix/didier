@@ -49,6 +49,7 @@ export type P2PProjectileDespawnMessage = {
   t: "proj-despawn";
   id: string;
   reason?: "hit" | "end" | string;
+  pos?: Vector3Tuple; // optional impact position for visuals
 };
 
 export type P2PApplyDamageMessage = {
@@ -57,6 +58,13 @@ export type P2PApplyDamageMessage = {
   amount: number;
   by?: PeerId | null;
   proj?: string; // projectile id
+};
+
+// Obstacles HP sync
+export type P2PObstacleHpMessage = {
+  t: "ob-hp";
+  id: string; // obstacle id
+  hp: number; // new hp value (authoritative)
 };
 
 export type P2PMessage =
@@ -70,7 +78,8 @@ export type P2PMessage =
   | P2PPongMessage
   | P2PSpellCastMessage
   | P2PProjectileDespawnMessage
-  | P2PApplyDamageMessage;
+  | P2PApplyDamageMessage
+  | P2PObstacleHpMessage;
 
 export type RemotePlayerState = {
   id: PeerId;

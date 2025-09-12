@@ -3,7 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Physics, useRapier } from "@react-three/rapier";
 import type { RigidBodyApi } from "@react-three/rapier";
 import { Color } from "three";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import type { AnimStateId } from "@/types/animation";
 import type { MoveTarget } from "@/types/game";
 import { Ground, Obstacles, Player, TargetMarker, CameraController, Minimap, RemotePlayer, ViewPanel, NetworkPanel } from "@/components/3d";
@@ -15,11 +15,15 @@ import { useCharacterUI } from "@/stores/character-ui";
 import { useP2PNetwork } from "@/systems/p2p/peer.client";
 import ProjectileManager, { type ProjectileManagerRef } from "@/components/3d/world/ProjectileManager";
 import type { P2PMessage } from "@/types/p2p";
+import { useObstacles } from "@/stores/obstacles";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { LoaderOverlay } from "@/components/ui/loader-overlay";
 import SpellCastInputAdapter from "@/systems/spells/SpellCastInputAdapter";
-import SpellPreview from "@/components/3d/ui/SpellPreview";
+import { FireballSpell } from "@/systems/spells/FireballSpell";
 import { useCastTransient } from "@/stores/cast";
+import { useAim } from "@/stores/aim";
+import { AimVisualRoot } from "@/components/3d/aim/AimVisuals";
+import { buildDefaultCharacter } from "@/systems/character/defaults";
 
 export function Game() {
   // Cible de déplacement persistante vs. marqueur visuel (1s)
@@ -50,6 +54,10 @@ export function Game() {
   const previewVisible = useCastTransient((s) => s.previewVisible);
   const armedAction = useCastTransient((s) => s.armedAction);
   const [worldReady, setWorldReady] = useState(false);
+  const aimPoint = useAim((s) => s.point);
+  const character = useMemo(() => buildDefaultCharacter(), []);
+  const dashRange = (character.dashDurationMs / 1000) * character.dashSpeed;
+  const fireballSpell = useMemo(() => new FireballSpell(), []);
 
   // Wire custom P2P messages for spells/projectiles
   useEffect(() => {
@@ -57,13 +65,16 @@ export function Game() {
       if (msg.t === "spell-cast") {
         projRef.current?.spawn({ id: msg.id, from: msg.from ?? sender, kind: msg.kind, p: msg.p, d: msg.d, speed: msg.speed, range: msg.range, radius: msg.radius, damage: msg.damage });
       } else if (msg.t === "proj-despawn") {
-        projRef.current?.despawn(msg.id);
+        projRef.current?.despawn(msg.id, msg.reason, msg.pos as any);
       } else if (msg.t === "damage") {
         if (peerId && msg.to === peerId) {
           const st = useCharacterUI.getState();
           const next = Math.max(0, st.hpCurrent - Math.max(0, msg.amount));
           st.setHp(next, st.hpMax);
         }
+      } else if (msg.t === "ob-hp") {
+        // Apply authoritative obstacle hp update
+        useObstacles.getState().setHp(msg.id, msg.hp);
       }
     });
   }, [onMessage, peerId]);
@@ -100,7 +111,7 @@ export function Game() {
             performDashRef={performDashRef as any}
             onCancelMove={() => setMoveTarget(null)}
             onCastMagic={() => {
-              performPrimaryCast(playerRef.current, projRef.current, peerId, send);
+              performPrimaryCast(playerRef.current, projRef.current, peerId, send, aimPoint ?? null, fireballSpell);
             }}
           />
           <ProjectileManager
@@ -119,7 +130,13 @@ export function Game() {
         </Physics>
 
         <TargetMarker target={markerTarget} />
-        <SpellPreview visible={previewVisible} variant={armedAction === "game.dash" ? "dash" : "spell"} />
+        <AimVisualRoot
+          playerRef={playerRef}
+          visible={previewVisible}
+          range={armedAction === "game.dash" ? dashRange : 20}
+          type="arrow"
+          color={armedAction === "game.dash" ? "#22d3ee" : "#22d3ee"}
+        />
 
         <CameraController
           targetRef={playerRef}
@@ -131,7 +148,7 @@ export function Game() {
       </Canvas>
 
       <SpellCastInputAdapter
-        onPerformCast={() => performPrimaryCast(playerRef.current, projRef.current, peerId, send)}
+        onPerformCast={() => performPrimaryCast(playerRef.current, projRef.current, peerId, send, aimPoint ?? null, fireballSpell)}
         onPerformCastAnim={() => performCastRef.current?.()}
         onPerformDash={() => performDashRef.current?.()}
         onPerformDashAnim={undefined}
@@ -164,7 +181,11 @@ export function Game() {
         peers={peers}
         hostId={hostId}
         peersInfo={peersInfo as any}
-        onReconnect={reconnectMissing}
+        onReconnect={() => {
+          // Combine reconnect + ping to nudge liveness quickly
+          try { reconnectMissing(); } catch {}
+          try { pingAll(); } catch {}
+        }}
         onPing={pingAll}
       />
       <PingHUD peers={peersInfo as any} />
@@ -176,6 +197,54 @@ export function Game() {
       />
     </>
   );
+}
+
+function performPrimaryCast(
+  body: RigidBodyApi | null,
+  projMgr: ProjectileManagerRef | null,
+  peerId: string | null,
+  send: (m: any) => void,
+  aimPoint: [number, number, number] | null,
+  spell: { getConfig(): { speed: number; range: number; radius: number; damage: number } },
+) {
+  if (!body) return;
+  const tr = body.translation();
+  // Direction from aim if available, otherwise from velocity
+  let dirX = 0;
+  let dirZ = 1;
+  if (aimPoint) {
+    const dx = aimPoint[0] - tr.x;
+    const dz = aimPoint[2] - tr.z;
+    const len = Math.hypot(dx, dz);
+    if (len > 1e-4) {
+      dirX = dx / len;
+      dirZ = dz / len;
+    }
+  } else {
+    const lv = body.linvel();
+    const v2 = lv.x * lv.x + lv.z * lv.z;
+    if (v2 > 1e-6) {
+      const l = Math.sqrt(v2);
+      dirX = lv.x / l;
+      dirZ = lv.z / l;
+    }
+  }
+  // Spawn at half character height so it doesn't fly over walls
+  const HALF_Y = (() => {
+    try {
+      const ch = buildDefaultCharacter();
+      return (ch.skin.fitHeight * ch.skin.scale) / 2;
+    } catch {
+      return 1.0;
+    }
+  })();
+  const origin: [number, number, number] = [tr.x + dirX * 0.8, HALF_Y, tr.z + dirZ * 0.8];
+  const dir: [number, number, number] = [dirX, 0, dirZ];
+  const id = `proj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+  const cfg = spell.getConfig();
+  const fireball = { id, from: peerId ?? null, kind: "fireball" as const, p: origin, d: dir, speed: cfg.speed, range: cfg.range, radius: cfg.radius, damage: cfg.damage };
+  projMgr?.spawn(fireball);
+  send({ t: "spell-cast", ...fireball } as any);
 }
 
 function WorldReadySensor({ playerRef, onReady }: { playerRef: React.MutableRefObject<RigidBodyApi | null>; onReady: () => void }) {
@@ -200,24 +269,6 @@ function WorldReadySensor({ playerRef, onReady }: { playerRef: React.MutableRefO
 }
 
 
-function performPrimaryCast(
-  player: RigidBodyApi | null,
-  proj: ProjectileManagerRef | null,
-  peerId: string | null | undefined,
-  send: (msg: P2PMessage) => void,
-) {
-  const b = player;
-  if (!b) return;
-  const tr = b.translation();
-  const lv = b.linvel();
-  const v2 = lv.x * lv.x + lv.z * lv.z;
-  const dirX = v2 > 1e-6 ? lv.x / Math.sqrt(v2) : 0;
-  const dirZ = v2 > 1e-6 ? lv.z / Math.sqrt(v2) : 1;
-  const origin: [number, number, number] = [tr.x + dirX * 0.8, Math.max(1.0, tr.y + 1.0), tr.z + dirZ * 0.8];
-  const dir: [number, number, number] = [dirX, 0, dirZ];
-  const id = `proj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-  proj?.spawn({ id, from: peerId ?? null, kind: "magic-bolt", p: origin, d: dir, speed: 24, range: 20, radius: 0.35, damage: 20 });
-  send({ t: "spell-cast", id, from: peerId ?? null, kind: "magic-bolt", p: origin, d: dir, speed: 24, range: 20, radius: 0.35, damage: 20 } as any);
-}
+// (old performPrimaryCast removed; replaced by version above that uses aim when present)
 
 

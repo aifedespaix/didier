@@ -2,6 +2,7 @@
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import { useCallback, useEffect, useRef } from "react";
 import { WORLD, HALF } from "@/config/world";
+import { useAim } from "@/stores/aim";
 
 export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) => void }) {
   // Dimensions du terrain et des murs (m)
@@ -18,6 +19,8 @@ export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) 
 
   const rmbDown = useRef(false);
   const lastUpdate = useRef(0);
+  const lastAimUpdate = useRef(0);
+  const setAim = useAim((s) => s.setPoint);
 
   const updateFromEvent = useCallback(
     (e: any) => {
@@ -57,16 +60,23 @@ export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) 
 
   const handlePointerMove = useCallback(
     (e: any) => {
+      // Always update aim point on hover (throttled)
+      const now = performance.now();
+      if (now - lastAimUpdate.current > 16) {
+        lastAimUpdate.current = now;
+        const p = e.point;
+        if (p) setAim([p.x, p.y, p.z]);
+      }
+
+      // If RMB held, also update move target (throttled ~30 Hz)
       const buttons: number | undefined = e.buttons ?? e?.nativeEvent?.buttons;
       const rmbHeld = rmbDown.current || (typeof buttons === "number" && (buttons & 2) === 2);
       if (!rmbHeld) return;
-      // Throttle ~30 Hz
-      const now = performance.now();
       if (now - lastUpdate.current < 33) return;
       lastUpdate.current = now;
       updateFromEvent(e);
     },
-    [updateFromEvent],
+    [setAim, updateFromEvent],
   );
 
   useEffect(() => {
@@ -83,11 +93,17 @@ export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) 
       <mesh
         receiveShadow
         rotation={[-Math.PI / 2, 0, 0]}
+        onPointerOver={(e: any) => {
+          const p = e.point;
+          if (p) setAim([p.x, p.y, p.z]);
+        }}
+        onPointerOut={() => setAim(null)}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerMove={handlePointerMove}
         onPointerLeave={() => {
           rmbDown.current = false;
+          setAim(null);
         }}
       >
         <planeGeometry args={[SIZE_X, SIZE_Z]} />
