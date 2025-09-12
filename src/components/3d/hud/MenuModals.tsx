@@ -8,6 +8,8 @@ import { loadBindings, saveBindings } from "@/3d/input/persistence/storage";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { PlayIcon, SettingsIcon, KeyboardIcon, LogOutIcon, HomeIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSettings } from "@/stores/settings";
 
 export function MenuManager() {
   const { activeContext, setContext } = useInputRuntime();
@@ -78,6 +80,7 @@ function SettingsModal({ open, onOpenChange, onOpenShortcuts }: { open: boolean;
         <div className="px-5 pb-4 pt-2 space-y-4">
           <ThemeRow />
           <LayoutRow />
+          <CastModeRow />
           <div className="flex flex-col gap-2">
             <Button onClick={onOpenShortcuts}><KeyboardIcon /> Shortcuts</Button>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>Back</Button>
@@ -114,7 +117,13 @@ function ShortcutsModal({ open, onOpenChange }: { open: boolean; onOpenChange: (
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const code = `Key:${(e as any).code || e.key}`;
+      const codeOnly = (e as any).code || e.key;
+      // Allow Escape to cancel capture instead of binding it
+      if (codeOnly === "Escape") {
+        setCapture(null);
+        return;
+      }
+      const code = `Key:${codeOnly}`;
       // Build new overrides: remove any entry using this key, and any old key for this action
       const persisted = loadBindings() || {} as any;
       const gameplay: Record<string, string> = { ...(persisted.gameplay || {}) };
@@ -277,3 +286,23 @@ function applyLayout(layout: "qwerty" | "azerty") {
 }
 
 export default MenuManager;
+
+function CastModeRow() {
+  const mode = useSettings((s) => s.castMode);
+  const setCastMode = useSettings((s) => s.setCastMode);
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="text-sm">Cast Mode</div>
+      <Select value={mode} onValueChange={(v) => setCastMode(v as any)}>
+        <SelectTrigger>
+          <SelectValue placeholder="Classic" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="quick">Quick</SelectItem>
+          <SelectItem value="semi-quick">Semi-Quick</SelectItem>
+          <SelectItem value="classic">Classic</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}

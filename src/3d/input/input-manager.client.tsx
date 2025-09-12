@@ -37,10 +37,13 @@ export function InputProvider({ initialContext = "menu", overrides, children }: 
 
   // Merge bindings: defaults <- persisted <- overrides
   const persisted = useMemo(() => loadBindings(), []);
-  const bindings = useMemo(
-    () => mergeBindings(DEFAULT_BINDINGS, mergeBindings(persisted || ({} as any), overrides)),
-    [persisted, overrides],
-  );
+  const bindings = useMemo(() => {
+    const merged = mergeBindings(DEFAULT_BINDINGS, mergeBindings(persisted || ({} as any), overrides));
+    // Enforce essential bindings regardless of user overrides
+    const b = { ...merged, gameplay: { ...(merged.gameplay || {}) } } as ContextBindings;
+    b.gameplay["Key:Escape"] = "ui.toggleMenu" as ActionId;
+    return b;
+  }, [persisted, overrides]);
 
   // Validate one->one (inverse) per context
   useEffect(() => {

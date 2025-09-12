@@ -11,13 +11,14 @@ function formatTime(seconds: number) {
   return `${m}:${r.toString().padStart(2, "0")}`;
 }
 
-export function LoaderOverlay() {
+export function LoaderOverlay({ extraTotal = 0, extraDone = 0, extraLabel }: { extraTotal?: number; extraDone?: number; extraLabel?: string }) {
   const { active, progress, loaded, total, item } = useProgress();
   const [visible, setVisible] = useState<boolean>(false);
   const startRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState<number>(0);
   const rafRef = useRef<number | null>(null);
   const [rapierDone, setRapierDone] = useState<boolean>(isRapierReady());
+  const [completed, setCompleted] = useState<boolean>(false);
 
   // Kick Rapier initialization as part of boot and track it as a task
   useEffect(() => {
@@ -26,9 +27,14 @@ export function LoaderOverlay() {
     }
   }, [rapierDone]);
 
-  // Track elapsed time while loading is active
+  // Track elapsed time while loading is active (combined)
   useEffect(() => {
-    const shouldRun = !rapierDone || active || (total > 0 && progress < 100);
+    const rapierTotal = 1;
+    const rapierLoaded = rapierDone ? 1 : 0;
+    const combinedTotal = Math.max(1, total + rapierTotal + extraTotal);
+    const combinedLoaded = Math.min(combinedTotal, loaded + rapierLoaded + Math.min(extraDone, extraTotal));
+    const combinedPct = (combinedLoaded / combinedTotal) * 100;
+    const shouldRun = active || combinedPct < 100;
     if (shouldRun) {
       if (startRef.current == null) startRef.current = performance.now();
       const loop = () => {
@@ -43,15 +49,15 @@ export function LoaderOverlay() {
       };
     }
     return undefined;
-  }, [rapierDone, active, progress, total]);
+  }, [rapierDone, active, progress, total, extraTotal, extraDone]);
 
   // Estimate remaining time based on progress
   const eta = useMemo(() => {
     // Combine three.js items with our boot task(s)
-    const extraTotal = 1; // always count Rapier as one item in total
-    const extraLoaded = rapierDone ? 1 : 0;
-    const combinedTotal = Math.max(1, total + extraTotal);
-    const combinedLoaded = Math.min(combinedTotal, loaded + extraLoaded);
+    const rapierTotal = 1; // always count Rapier as one item in total
+    const rapierLoaded = rapierDone ? 1 : 0;
+    const combinedTotal = Math.max(1, total + rapierTotal + extraTotal);
+    const combinedLoaded = Math.min(combinedTotal, loaded + rapierLoaded + Math.min(extraDone, extraTotal));
     const combinedProgress = (combinedLoaded / combinedTotal) * 100;
 
     const p = Math.min(99.9, Math.max(0.1, combinedProgress));
@@ -62,30 +68,36 @@ export function LoaderOverlay() {
     return remain;
   }, [elapsed, loaded, total, rapierDone]);
 
-  // Control visibility (mount/unmount) with small delay, considering boot + three
+  // Control visibility (mount/unmount) with small delay, considering combined loading
   useEffect(() => {
-    const loadingActive = !rapierDone || active || (total > 0 && progress < 100);
+    const rapierTotal = 1;
+    const rapierLoaded = rapierDone ? 1 : 0;
+    const combinedTotal = Math.max(1, total + rapierTotal + extraTotal);
+    const combinedLoaded = Math.min(combinedTotal, loaded + rapierLoaded + Math.min(extraDone, extraTotal));
+    const combinedPct = (combinedLoaded / combinedTotal) * 100;
+    const loadingActive = active || combinedPct < 100;
     if (loadingActive) {
-      setVisible(true);
+      if (!completed) setVisible(true);
       return;
     }
-    // fade out then hide
+    // mark as completed and fade out then hide
+    setCompleted(true);
     const t = setTimeout(() => setVisible(false), 350);
     startRef.current = null;
     setElapsed(0);
     return () => clearTimeout(t);
-  }, [rapierDone, active, progress, total]);
+  }, [rapierDone, active, progress, total, extraTotal, extraDone, completed]);
 
   // Render nothing when not visible at all
   // Compute combined progress and visibility
-  const extraTotal = 1;
-  const extraLoaded = rapierDone ? 1 : 0;
-  const combinedTotal = Math.max(1, total + extraTotal);
-  const combinedLoaded = Math.min(combinedTotal, loaded + extraLoaded);
+  const rapierTotal = 1;
+  const rapierLoaded = rapierDone ? 1 : 0;
+  const combinedTotal = Math.max(1, total + rapierTotal + extraTotal);
+  const combinedLoaded = Math.min(combinedTotal, loaded + rapierLoaded + Math.min(extraDone, extraTotal));
   const combinedPct = (combinedLoaded / combinedTotal) * 100;
   const bootPending = !rapierDone;
   const loadingActive = bootPending || active || combinedPct < 100;
-  const show = visible || loadingActive;
+  const show = visible || (!completed && loadingActive);
   if (!show) return null;
 
   const pct = Math.max(0, Math.min(100, combinedPct));
@@ -93,7 +105,7 @@ export function LoaderOverlay() {
   return (
     <div
       className={`pointer-events-none fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 transition-opacity duration-300 ${
-        loadingActive ? "opacity-100" : "opacity-0"
+        loadingActive && !completed ? "opacity-100" : "opacity-0"
       }`}
     >
       <div className="pointer-events-auto mx-4 w-full max-w-[440px] rounded-xl border border-white/10 bg-neutral-900/70 p-5 shadow-2xl backdrop-blur">
@@ -109,7 +121,7 @@ export function LoaderOverlay() {
           </span>
         </div>
         <div className="mt-1 truncate text-[11px] text-white/40">
-          {(!rapierDone && combinedLoaded <= 1 && !item) ? "Initialisation du moteur physique…" : (item ?? "")}
+          {(!rapierDone && combinedLoaded <= 1 && !item) ? "Initialisation du moteur physique…" : (extraLabel || item || "")}
         </div>
         <div className="mt-4 text-center text-[11px] text-white/40">
           écoulé {formatTime(elapsed)}

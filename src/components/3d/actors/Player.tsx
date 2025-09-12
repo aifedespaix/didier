@@ -21,12 +21,17 @@ export function Player({
   animOverrideRef,
   onCancelMove,
   onCastMagic,
+  performCastRef,
 }: {
   target: MoveTarget;
   bodyRef?: React.MutableRefObject<RigidBodyApi | null>;
   animOverrideRef?: React.MutableRefObject<AnimStateId | null>;
   onCancelMove?: () => void;
   onCastMagic?: () => void;
+  /**
+   * Optional ref to expose a method that performs the non-mobility cast animation/lock and UI cooldown.
+   */
+  performCastRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const body = bodyRef ?? useRef<RigidBodyApi | null>(null);
   const visual = useRef<Group | null>(null);
@@ -100,20 +105,22 @@ export function Player({
     }
   });
 
-  // Sort non-mobilité (Spell #1): stop current move and cast on the spot
-  useActionEvents("game.spell.1", (ev) => {
-    if (ev.type !== "digital" || ev.phase !== "pressed") return;
-    castingUntil.current = performance.now() + 600; // fenêtre d'incantation
-    // Play the specific attack clip (mapped to standing_1h_magic_attack_01)
-    setOverrideAnim("attack");
-    if (overrideTimer.current) window.clearTimeout(overrideTimer.current);
-    overrideTimer.current = window.setTimeout(() => setOverrideAnim(null), 500);
-    // Annuler la cible de déplacement tant qu'on n'a pas redéfini une position
-    try { onCancelMove?.(); } catch {}
-    try { onCastMagic?.(); } catch {}
-    // UI cooldown for primary
-    setCooldownUntil("primary", performance.now() + 800);
-  });
+  // Expose performCast via ref for external input adapters (quick/semi/classic)
+  useEffect(() => {
+    if (!performCastRef) return;
+    performCastRef.current = () => {
+      castingUntil.current = performance.now() + 600;
+      setOverrideAnim("attack");
+      if (overrideTimer.current) window.clearTimeout(overrideTimer.current);
+      overrideTimer.current = window.setTimeout(() => setOverrideAnim(null), 500);
+      try { onCancelMove?.(); } catch {}
+      try { onCastMagic?.(); } catch {}
+      setCooldownUntil("primary", performance.now() + 800);
+    };
+    return () => {
+      performCastRef.current = null;
+    };
+  }, [performCastRef, onCancelMove, onCastMagic, setCooldownUntil]);
 
   useFrame((_state, dt) => {
     const b = body.current;
