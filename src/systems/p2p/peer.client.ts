@@ -24,6 +24,7 @@ export type UseP2POptions = {
   notify?: boolean; // show toasts
   debug?: boolean; // console.debug logs
   getAnimOverride?: () => import("@/types/animation").AnimStateId | null;
+  getHp?: () => { cur: number; max: number } | null;
   // Safety controls
   maxPeers?: number; // hard cap for concurrent peer connections (open+pending)
   maxPending?: number; // cap for in-flight dials to avoid bursts
@@ -63,6 +64,7 @@ export function useP2PNetwork(
   const lastDialRef = useRef<Map<PeerId, number>>(new Map());
   const toastCooldownRef = useRef<Map<string, number>>(new Map());
   const rttRef = useRef<Map<PeerId, number>>(new Map());
+  const listenersRef = useRef<Set<(sender: PeerId, msg: P2PMessage) => void>>(new Set());
 
   function getIceConfig(): PeerJSOption["config"] | undefined {
     // Allow overriding ICE servers via env (NEXT_PUBLIC_*).
@@ -378,7 +380,7 @@ export function useP2PNetwork(
         break;
       }
       case "state": {
-        const st: RemotePlayerState = { id: sender, p: msg.p, y: msg.y, a: (msg as any).a ?? null, last: now() };
+        const st: RemotePlayerState = { id: sender, p: msg.p, y: msg.y, a: (msg as any).a ?? null, h: (msg as any).h ?? null, last: now() };
         setRemotes((prev) => {
           const next = new Map(prev);
           next.set(sender, st);
@@ -387,7 +389,14 @@ export function useP2PNetwork(
         break;
       }
       default:
+        // allow external listeners to observe custom messages
         break;
+    }
+    // Notify external listeners (after internal updates)
+    if (listenersRef.current.size > 0) {
+      for (const cb of Array.from(listenersRef.current)) {
+        try { cb(sender, msg); } catch {}
+      }
     }
   }
 
@@ -466,7 +475,8 @@ export function useP2PNetwork(
     const yaw = speed2 > 1e-6 ? Math.atan2(lv.x, lv.z) : lastYawRef.current;
     lastYawRef.current = yaw;
     const a = getAnimOverride ? getAnimOverride() : null;
-    const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, a: a ?? undefined };
+    const hp = options?.getHp ? options.getHp() : null;
+    const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, a: a ?? undefined, h: hp ? [hp.cur, hp.max] : undefined };
     safeSend(conn, payload);
   }
 
@@ -487,7 +497,8 @@ export function useP2PNetwork(
           const yaw = speed2 > 1e-6 ? Math.atan2(lv.x, lv.z) : lastYawRef.current;
           lastYawRef.current = yaw;
           const a = getAnimOverride ? getAnimOverride() : null;
-          const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, a: a ?? undefined };
+          const hp = options?.getHp ? options.getHp() : null;
+          const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, a: a ?? undefined, h: hp ? [hp.cur, hp.max] : undefined };
           broadcast(payload);
         }
       }
@@ -567,5 +578,10 @@ export function useP2PNetwork(
     peersInfo,
     reconnectMissing,
     pingAll,
+    send: (msg: P2PMessage) => broadcast(msg),
+    onMessage: (cb: (sender: PeerId, msg: P2PMessage) => void) => {
+      listenersRef.current.add(cb);
+      return () => listenersRef.current.delete(cb);
+    },
   } as const;
 }

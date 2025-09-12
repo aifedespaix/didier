@@ -54,6 +54,8 @@ export function Obstacles() {
             <CuboidCollider
               args={[half[0], half[1], half[2]]}
               position={[0, half[1], 0]}
+              friction={0.1}
+              restitution={0}
             />
             <mesh castShadow receiveShadow position={[0, half[1], 0]}>
               <boxGeometry args={[sx, sy, sz]} />

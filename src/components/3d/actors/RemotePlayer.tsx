@@ -6,6 +6,7 @@ import { Euler, Quaternion, Vector3 } from "three";
 import type { RemotePlayerState } from "@/types/p2p";
 import { CharacterModel } from "@/components/3d/actors/CharacterModel";
 import { CHARACTER_CLIP_HINTS } from "@/config/animations";
+import { OverheadHealth } from "@/components/3d/hud/OverheadHealth";
 import { useMemo } from "react";
 import { buildDefaultCharacter } from "@/systems/character/defaults";
 
@@ -21,10 +22,15 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   const lastPos = useRef(new Vector3(...state.p));
   const speedRef = useRef(0);
 
-  // Character visual config (keep ground ring like before)
+  // Character visual config (mirror local)
   const character = useMemo(() => buildDefaultCharacter(), []);
   const VISUAL_SCALE = character.skin.scale;
   const VISUAL_FIT_HEIGHT = character.skin.fitHeight;
+  const EFFECTIVE_HEIGHT = VISUAL_FIT_HEIGHT * VISUAL_SCALE;
+  const HALF_Y = EFFECTIVE_HEIGHT / 2;
+  const BASE_HALF_Y = 1.0;
+  const RING_SCALE = HALF_Y / BASE_HALF_Y;
+  const HEAD_Y = -1 + EFFECTIVE_HEIGHT + 0.08;
 
   useFrame((_s, dt) => {
     // Update targets from latest state
@@ -56,8 +62,8 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   return (
     <group ref={visual}>
       {/* UX: red translucent ground ring (annulus) under remote players */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.02, 0]} receiveShadow>
-        <ringGeometry args={[0.55, 0.85, 32]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -(HALF_Y + 0.02), 0]} receiveShadow>
+        <ringGeometry args={[0.55 * RING_SCALE, 0.85 * RING_SCALE, 32]} />
         <meshStandardMaterial color="#ef4444" transparent opacity={0.45} />
       </mesh>
       {/* Character visual with animations (remote) */}
@@ -67,7 +73,12 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
         clipHints={CHARACTER_CLIP_HINTS}
         fitHeight={VISUAL_FIT_HEIGHT}
         scale={VISUAL_SCALE}
+        yOffset={-HALF_Y}
       />
+      {/* 3D overhead health bar for remote if provided */}
+      {state.h && (
+        <OverheadHealth position={[0, HEAD_Y, 0]} width={0.9} height={0.08} value={state.h[0]} max={state.h[1]} />
+      )}
     </group>
   );
 }

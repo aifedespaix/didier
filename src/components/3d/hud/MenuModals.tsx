@@ -6,6 +6,8 @@ import { useActionEvents, useInputRuntime } from "@/3d/input/hooks";
 import { DEFAULT_BINDINGS } from "@/3d/input/bindings";
 import { loadBindings, saveBindings } from "@/3d/input/persistence/storage";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
+import { PlayIcon, SettingsIcon, KeyboardIcon, LogOutIcon, HomeIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 
 export function MenuManager() {
   const { activeContext, setContext } = useInputRuntime();
@@ -51,10 +53,14 @@ function MainMenu({ open, onOpenChange, onOpenSettings }: { open: boolean; onOpe
         <DialogHeader>
           <DialogTitle>Menu</DialogTitle>
         </DialogHeader>
-        <div className="px-5 pb-4 pt-2">
+        <div className="px-5 pb-4 pt-2 space-y-3">
           <div className="flex flex-col gap-2">
-            <Button onClick={() => onOpenChange(false)}>Resume</Button>
-            <Button onClick={onOpenSettings}>Settings</Button>
+            <Button onClick={() => onOpenChange(false)}><PlayIcon /> Resume</Button>
+            <Button onClick={onOpenSettings}><SettingsIcon /> Settings</Button>
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <Button variant="secondary" onClick={() => navigateRoom(undefined)}><LogOutIcon /> Leave Room</Button>
+            <Button variant="outline" onClick={() => navigateRoom("lobby")}><HomeIcon /> Return to Lobby</Button>
           </div>
         </div>
       </DialogContent>
@@ -69,9 +75,11 @@ function SettingsModal({ open, onOpenChange, onOpenShortcuts }: { open: boolean;
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
-        <div className="px-5 pb-4 pt-2">
+        <div className="px-5 pb-4 pt-2 space-y-4">
+          <ThemeRow />
+          <LayoutRow />
           <div className="flex flex-col gap-2">
-            <Button onClick={onOpenShortcuts}>Shortcuts</Button>
+            <Button onClick={onOpenShortcuts}><KeyboardIcon /> Shortcuts</Button>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>Back</Button>
           </div>
         </div>
@@ -89,29 +97,42 @@ function findCurrentDashBinding(): string | null {
 }
 
 function ShortcutsModal({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const [capture, setCapture] = useState(false);
-  const [current, setCurrent] = useState<string | null>(null);
+  const [capture, setCapture] = useState<null | string>(null);
+  const [bindings, setBindings] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (open) setCurrent(findCurrentDashBinding());
+    if (open) {
+      const persisted = loadBindings() || {} as any;
+      const merged = { ...(DEFAULT_BINDINGS.gameplay || {}), ...((persisted.gameplay as any) || {}) } as Record<string, string>;
+      setBindings(merged);
+    }
   }, [open]);
 
   useEffect(() => {
     if (!capture) return;
+    const action = capture;
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
       const code = `Key:${(e as any).code || e.key}`;
-      // Build new overrides: remove previous mapping for game.dash, set new
+      // Build new overrides: remove any entry using this key, and any old key for this action
       const persisted = loadBindings() || {} as any;
       const gameplay: Record<string, string> = { ...(persisted.gameplay || {}) };
-      // Remove any key mapping to game.dash
-      for (const k of Object.keys(gameplay)) if (gameplay[k] === "game.dash") delete gameplay[k];
-      gameplay[code] = "game.dash";
+      // Remove any action currently on this key
+      for (const k of Object.keys(gameplay)) if (k === code) delete gameplay[k];
+      // Remove previous binding for this action
+      for (const k of Object.keys(gameplay)) if (gameplay[k] === action) delete gameplay[k];
+      gameplay[code] = action;
       saveBindings({ gameplay } as any);
-      toast.success(`Dash bound to ${code}`);
-      setCurrent(code);
-      setCapture(false);
+      toast.success(`${action} bound to ${code}`);
+      setBindings((prev) => {
+        const next = { ...prev };
+        // also reflect in merged view
+        for (const k of Object.keys(next)) if (next[k] === action) delete next[k];
+        next[code] = action;
+        return next;
+      });
+      setCapture(null);
       // Reload to apply new bindings (InputProvider reads on mount)
       setTimeout(() => window.location.reload(), 350);
     };
@@ -119,26 +140,50 @@ function ShortcutsModal({ open, onOpenChange }: { open: boolean; onOpenChange: (
     return () => window.removeEventListener("keydown", onKey, { capture: true } as any);
   }, [capture]);
 
+  const map = bindings;
+  const getKey = (action: string) => {
+    for (const [code, act] of Object.entries(map)) if (act === action) return code;
+    return null;
+  };
+
+  const rows: Array<{ label: string; action: string }> = [
+    { label: "Move Forward", action: "game.move.forward" },
+    { label: "Move Back", action: "game.move.back" },
+    { label: "Move Left", action: "game.move.left" },
+    { label: "Move Right", action: "game.move.right" },
+    { label: "Jump", action: "game.jump" },
+    { label: "Sprint", action: "game.sprint" },
+    { label: "Spell #1", action: "game.spell.1" },
+    { label: "Auto-attack", action: "game.attack" },
+    { label: "Dash", action: "game.dash" },
+    { label: "Follow Camera", action: "camera.follow.toggle" },
+    { label: "Zoom In", action: "camera.zoom.in" },
+    { label: "Zoom Out", action: "camera.zoom.out" },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Shortcuts</DialogTitle>
         </DialogHeader>
-        <div className="px-5 pb-2 pt-2">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm">Dash</div>
+        <div className="px-5 pb-2 pt-2 space-y-3">
+          {rows.map((r) => (
+            <div key={r.action} className="flex items-center justify-between gap-3">
+              <div className="text-sm">{r.label}</div>
               <div className="flex items-center gap-2">
-                <code className="text-xs opacity-80">{current ?? "Key:KeyE"}</code>
-                <Button size="sm" onClick={() => setCapture(true)}>Rebind</Button>
+                <code className="text-xs opacity-80">{getKey(r.action) ?? "—"}</code>
+                <Button size="sm" onClick={() => setCapture(r.action)}>Rebind</Button>
               </div>
             </div>
-            {capture && (
-              <div className="rounded bg-yellow-500/10 border border-yellow-500/30 p-2 text-xs">
-                Press a key to bind Dash…
-              </div>
-            )}
+          ))}
+          {capture && (
+            <div className="rounded bg-yellow-500/10 border border-yellow-500/30 p-2 text-xs">
+              Press a key to bind <b>{capture}</b>…
+            </div>
+          )}
+          <div className="pt-2">
+            <Button variant="outline" size="sm" onClick={() => { saveBindings({} as any); toast.success("Shortcuts reset"); setTimeout(() => window.location.reload(), 200); }}>Reset to defaults</Button>
           </div>
         </div>
         <DialogFooter>
@@ -147,6 +192,88 @@ function ShortcutsModal({ open, onOpenChange }: { open: boolean; onOpenChange: (
       </DialogContent>
     </Dialog>
   );
+}
+
+function navigateRoom(room?: string) {
+  try {
+    const url = new URL(window.location.href);
+    if (room) url.searchParams.set("room", room);
+    else url.searchParams.delete("room");
+    window.location.href = url.toString();
+  } catch {
+    window.location.reload();
+  }
+}
+
+function ThemeRow() {
+  const { theme, setTheme } = useTheme();
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="text-sm">Theme</div>
+      <div className="flex items-center gap-2">
+        <Button variant={theme === "light" ? "default" : "outline"} size="sm" onClick={() => setTheme("light")}><SunIcon className="size-4" /> Light</Button>
+        <Button variant={theme === "dark" ? "default" : "outline"} size="sm" onClick={() => setTheme("dark")}><MoonIcon className="size-4" /> Dark</Button>
+        <Button variant={theme === "system" ? "default" : "outline"} size="sm" onClick={() => setTheme("system")}><MonitorIcon className="size-4" /> System</Button>
+      </div>
+    </div>
+  );
+}
+
+function LayoutRow() {
+  const [active, setActive] = useState<string>(() => getLayoutFromBindings());
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="text-sm">Keyboard Layout</div>
+      <div className="flex items-center gap-2">
+        <Button variant={active === "qwerty" ? "default" : "outline"} size="sm" onClick={() => { applyLayout("qwerty"); setActive("qwerty"); }}>QWERTY</Button>
+        <Button variant={active === "azerty" ? "default" : "outline"} size="sm" onClick={() => { applyLayout("azerty"); setActive("azerty"); }}>AZERTY</Button>
+      </div>
+    </div>
+  );
+}
+
+function getLayoutFromBindings(): "qwerty" | "azerty" {
+  const persisted = loadBindings();
+  const map = { ...(DEFAULT_BINDINGS.gameplay || {}), ...((persisted?.gameplay as any) || {}) } as Record<string, string>;
+  const forwardKey = Object.entries(map).find(([, act]) => act === "game.move.forward")?.[0] ?? "";
+  if (forwardKey.includes("KeyZ")) return "azerty";
+  return "qwerty";
+}
+
+function applyLayout(layout: "qwerty" | "azerty") {
+  const gameplay: Record<string, string> = {};
+  // Common
+  gameplay["Key:Space"] = "game.jump";
+  gameplay["Key:ShiftLeft"] = "game.sprint";
+  // Reserve LMB for auto-attack placeholder (does nothing yet)
+  gameplay["Mouse:Left"] = "game.attack";
+  // Do not bind RMB to any action (used for move orders in-scene)
+  gameplay["Mouse:WheelUp"] = "camera.zoom.in";
+  gameplay["Mouse:WheelDown"] = "camera.zoom.out";
+  gameplay["Key:KeyL"] = "camera.follow.toggle";
+  gameplay["Key:Escape"] = "ui.toggleMenu";
+  // Movement
+  if (layout === "qwerty") {
+    gameplay["Key:KeyW"] = "game.move.forward";
+    gameplay["Key:KeyS"] = "game.move.back";
+    gameplay["Key:ArrowLeft"] = "game.move.left";
+    gameplay["Key:KeyD"] = "game.move.right";
+    gameplay["Key:ArrowRight"] = "game.move.right";
+  } else {
+    gameplay["Key:KeyZ"] = "game.move.forward";
+    gameplay["Key:KeyS"] = "game.move.back";
+    gameplay["Key:ArrowLeft"] = "game.move.left";
+    gameplay["Key:KeyD"] = "game.move.right";
+    gameplay["Key:ArrowRight"] = "game.move.right";
+  }
+  // Actions (example: keep dash on E for both)
+  gameplay["Key:KeyE"] = "game.dash";
+  // Primary spell on A/Q depending on layout
+  if (layout === "qwerty") gameplay["Key:KeyA"] = "game.spell.1";
+  else gameplay["Key:KeyQ"] = "game.spell.1";
+  saveBindings({ gameplay } as any);
+  toast.success(`Applied ${layout.toUpperCase()} layout`);
+  setTimeout(() => window.location.reload(), 250);
 }
 
 export default MenuManager;

@@ -31,6 +31,12 @@ export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) 
     (e: any) => {
       if (e.button !== 2) return; // Right click only
       rmbDown.current = true;
+      // Capture pointer to keep receiving move events reliably while held
+      try {
+        if (e?.target?.setPointerCapture && typeof e.pointerId !== "undefined") {
+          e.target.setPointerCapture(e.pointerId);
+        }
+      } catch {}
       e.stopPropagation();
       e.preventDefault?.();
       updateFromEvent(e);
@@ -39,7 +45,14 @@ export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) 
   );
 
   const handlePointerUp = useCallback((e: any) => {
-    if (e.button === 2) rmbDown.current = false;
+    if (e.button === 2) {
+      rmbDown.current = false;
+      try {
+        if (e?.target?.releasePointerCapture && typeof e.pointerId !== "undefined") {
+          e.target.releasePointerCapture(e.pointerId);
+        }
+      } catch {}
+    }
   }, []);
 
   const handlePointerMove = useCallback(
@@ -82,7 +95,7 @@ export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) 
       </mesh>
 
       {/* Collider physique du sol */}
-      <CuboidCollider args={[HALF_X, 0.1, HALF_Z]} position={[0, -0.05, 0]} />
+      <CuboidCollider args={[HALF_X, 0.1, HALF_Z]} position={[0, -0.05, 0]} friction={0.1} restitution={0} />
 
       {/* Murs (violet foncé) */}
       {/* Nord */}
@@ -90,28 +103,28 @@ export function Ground({ onRightClick }: { onRightClick: (x: number, z: number) 
         <boxGeometry args={[SIZE_X, WALL_HEIGHT, WALL_THICKNESS]} />
         <meshStandardMaterial color={WALL_COLOR} />
       </mesh>
-      <CuboidCollider args={[HALF_X, WALL_HEIGHT / 2, WALL_THICKNESS / 2]} position={[0, WALL_HEIGHT / 2, HALF_Z]} />
+      <CuboidCollider args={[HALF_X, WALL_HEIGHT / 2, WALL_THICKNESS / 2]} position={[0, WALL_HEIGHT / 2, HALF_Z]} friction={0.1} restitution={0} />
 
       {/* Sud */}
       <mesh castShadow receiveShadow position={[0, WALL_HEIGHT / 2, -HALF_Z]}>
         <boxGeometry args={[SIZE_X, WALL_HEIGHT, WALL_THICKNESS]} />
         <meshStandardMaterial color={WALL_COLOR} />
       </mesh>
-      <CuboidCollider args={[HALF_X, WALL_HEIGHT / 2, WALL_THICKNESS / 2]} position={[0, WALL_HEIGHT / 2, -HALF_Z]} />
+      <CuboidCollider args={[HALF_X, WALL_HEIGHT / 2, WALL_THICKNESS / 2]} position={[0, WALL_HEIGHT / 2, -HALF_Z]} friction={0.1} restitution={0} />
 
       {/* Est */}
       <mesh castShadow receiveShadow position={[HALF_X, WALL_HEIGHT / 2, 0]}>
         <boxGeometry args={[WALL_THICKNESS, WALL_HEIGHT, SIZE_Z]} />
         <meshStandardMaterial color={WALL_COLOR} />
       </mesh>
-      <CuboidCollider args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF_Z]} position={[HALF_X, WALL_HEIGHT / 2, 0]} />
+      <CuboidCollider args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF_Z]} position={[HALF_X, WALL_HEIGHT / 2, 0]} friction={0.1} restitution={0} />
 
       {/* Ouest */}
       <mesh castShadow receiveShadow position={[-HALF_X, WALL_HEIGHT / 2, 0]}>
         <boxGeometry args={[WALL_THICKNESS, WALL_HEIGHT, SIZE_Z]} />
         <meshStandardMaterial color={WALL_COLOR} />
       </mesh>
-      <CuboidCollider args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF_Z]} position={[-HALF_X, WALL_HEIGHT / 2, 0]} />
+      <CuboidCollider args={[WALL_THICKNESS / 2, WALL_HEIGHT / 2, HALF_Z]} position={[-HALF_X, WALL_HEIGHT / 2, 0]} friction={0.1} restitution={0} />
     </RigidBody>
   );
 }

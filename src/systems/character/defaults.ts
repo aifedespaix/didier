@@ -2,18 +2,19 @@ import { Character } from "@/systems/character/Character";
 import type { CharacterProps } from "@/systems/character/types";
 
 export function buildDefaultCharacter(): Character {
+  const baseSpeed = 4.8; // m/s run speed (increased by +20%)
   const props: CharacterProps = {
-    speed: 4, // m/s
+    speed: baseSpeed,
     dash: {
-      speed: 10, // m/s (faster than run)
+      // Dash is 2.5x run speed by design
+      speed: baseSpeed * 2.5,
       durationMs: 520,
     },
     skin: {
       modelPath: "/character.glb",
       fitHeight: 1.8,
-      scale: 1.05, // subtle +5% visual only
+      scale: 1.15, // +15% visuel (demande)
     },
   };
   return new Character(props);
 }
-

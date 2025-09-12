@@ -19,8 +19,8 @@ export const DEFAULT_BINDINGS: ContextBindings = {
     "Key:ArrowUp": "game.move.forward",
     "Key:KeyS": "game.move.back",
     "Key:ArrowDown": "game.move.back",
-    "Key:KeyA": "game.move.left", // QWERTY
-    "Key:KeyQ": "game.move.left", // AZERTY
+    // Reserve A/Q for Spell #1; avoid binding to move.left
+    // Provide Arrow keys for lateral movement by default
     "Key:ArrowLeft": "game.move.left",
     "Key:KeyD": "game.move.right",
     "Key:ArrowRight": "game.move.right",
@@ -29,8 +29,12 @@ export const DEFAULT_BINDINGS: ContextBindings = {
     "Key:ShiftRight": "game.sprint",
 
     // Actions
-    "Mouse:Left": "game.primary",
-    "Mouse:Right": "game.secondary",
+    // Reserve LMB for future auto-attack (does nothing yet)
+    "Mouse:Left": "game.attack",
+    // Primary spell (AZERTY/QWERTY friendly): A on QWERTY, Q on AZERTY
+    "Key:KeyA": "game.spell.1",
+    "Key:KeyQ": "game.spell.1",
+    // Do not bind RMB to a spell; RMB is used for move orders in-scene
     "Key:KeyE": "game.dash",
 
     // Mouselook analog -> action game.look (résolu via Mouse:Move côté device)

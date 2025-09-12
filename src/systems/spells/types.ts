@@ -14,6 +14,14 @@ export interface SpellContext {
   visualQuaternion: Quaternion | null | undefined;
   setAnimOverride: (state: AnimStateId | null, durationMs?: number) => void;
   nowMs?: number;
+  // Optional world integration hook to spawn world effects (e.g., projectiles)
+  spawnProjectile?: (params: {
+    kind: "magic-bolt" | string;
+    speed: number;
+    range: number;
+    radius: number;
+    damage: number;
+  }) => void;
 }
 
 export interface SpellResult {
@@ -57,4 +65,3 @@ export abstract class SpellBase {
 
   protected abstract execute(ctx: SpellContext, self: Character, now: number): SpellResult;
 }
-

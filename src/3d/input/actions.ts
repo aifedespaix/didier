@@ -17,8 +17,11 @@ export type ActionId =
   | "game.move.right"
   | "game.jump"
   | "game.sprint"
-  | "game.primary"
-  | "game.secondary"
+  // Combat / abilities
+  | "game.attack" // reserved for future auto-attack (LMB)
+  | "game.spell.1" // primary spell (A/Q)
+  | "game.primary" // legacy alias (kept for compatibility)
+  | "game.secondary" // legacy alias (was RMB)
   | "game.dash"
   | "game.look" // analog delta (dx, dy)
   | "game.pause"
@@ -101,6 +104,21 @@ export const ACTIONS: Record<ActionId, ActionDef> = {
     domain: "game",
     contexts: ["gameplay"],
   },
+  // Reserved for future auto-attack (LMB); no consumer yet
+  "game.attack": {
+    id: "game.attack",
+    kind: "digital",
+    domain: "game",
+    contexts: ["gameplay"],
+  },
+  // Primary spell (A/Q). Use this for Spell #1.
+  "game.spell.1": {
+    id: "game.spell.1",
+    kind: "digital",
+    domain: "game",
+    contexts: ["gameplay"],
+  },
+  // Legacy aliases kept so existing debugging UIs don't crash if referenced
   "game.primary": {
     id: "game.primary",
     kind: "digital",
