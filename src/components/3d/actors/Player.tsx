@@ -1,20 +1,20 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { CapsuleCollider, RigidBody, useRapier } from "@react-three/rapier";
 import type { RigidBodyApi } from "@react-three/rapier";
-import { Quaternion, Vector3 } from "three";
-import type { Group } from "three";
+import { CapsuleCollider, RigidBody, useRapier } from "@react-three/rapier";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { MoveTarget } from "@/types/game";
+import type { Group } from "three";
+import { Quaternion, Vector3 } from "three";
+import { useActionPressed } from "@/3d/input/hooks";
 import { CharacterModel } from "@/components/3d/actors/CharacterModel";
 import { OverheadHealth } from "@/components/3d/hud/OverheadHealth";
 import { CHARACTER_CLIP_HINTS } from "@/config/animations";
-import { useActionPressed } from "@/3d/input/hooks";
-import type { AnimStateId } from "@/types/animation";
+import { useAim } from "@/stores/aim";
+import { useCharacterUI } from "@/stores/character-ui";
 import { buildDefaultCharacter } from "@/systems/character/defaults";
 import { DashSpell } from "@/systems/spells/DashSpell";
-import { useCharacterUI } from "@/stores/character-ui";
-import { useAim } from "@/stores/aim";
+import type { AnimStateId } from "@/types/animation";
+import type { MoveTarget } from "@/types/game";
 
 export function Player({
 	target,
@@ -140,7 +140,15 @@ export function Player({
 		return () => {
 			performDashRef.current = null;
 		};
-	}, [performDashRef, onCancelMove, character, setCooldownUntil, aimPoint]);
+	}, [
+		performDashRef,
+		onCancelMove,
+		character,
+		setCooldownUntil,
+		aimPoint,
+		body,
+		dashSpell,
+	]);
 
 	// Expose performCast via ref for external input adapters (quick/semi/classic)
 	useEffect(() => {
@@ -180,7 +188,14 @@ export function Player({
 		return () => {
 			performCastRef.current = null;
 		};
-	}, [performCastRef, onCancelMove, onCastMagic, setCooldownUntil]);
+	}, [
+		performCastRef,
+		onCancelMove,
+		onCastMagic,
+		setCooldownUntil,
+		aimPoint,
+		body,
+	]);
 
 	useFrame((_state, dt) => {
 		const b = body.current;
@@ -226,8 +241,8 @@ export function Player({
 					if (hit) {
 						const n = hit.normal1;
 						const dot = vx * n.x + vz * n.z;
-						let sx = vx - dot * n.x;
-						let sz = vz - dot * n.z;
+						const sx = vx - dot * n.x;
+						const sz = vz - dot * n.z;
 						const sLen = Math.hypot(sx, sz);
 						if (sLen > 1e-4) {
 							const k = Math.min(DASH_SPEED, sLen) / sLen;
@@ -255,11 +270,8 @@ export function Player({
 				} catch {}
 				const len = Math.hypot(inputX, inputZ);
 				if (len > 0) {
-					const yaw = visual.current?.rotation.y ?? 0;
-					const cos = Math.cos(yaw);
-					const sin = Math.sin(yaw);
-					const worldX = (inputX / len) * cos + (inputZ / len) * sin;
-					const worldZ = (inputZ / len) * cos - (inputX / len) * sin;
+					const worldX = inputX / len;
+					const worldZ = inputZ / len;
 					b.setLinvel({ x: worldX * speed, y: lv.y, z: worldZ * speed }, true);
 				} else if (Math.abs(lv.x) > 0.001 || Math.abs(lv.z) > 0.001) {
 					b.setLinvel({ x: 0, y: lv.y, z: 0 }, true);
