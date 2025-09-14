@@ -8,7 +8,8 @@ export type P2PStateMessage = {
 	t: "state";
 	p: Vector3Tuple; // position [x,y,z]
 	y: number; // yaw in radians
-	ly?: number; // optional light yaw in radians (aim/torch direction)
+	aim?: number; // optional aim yaw in radians
+	fire?: boolean; // whether the peer fired during this tick
 	a?: AnimStateId | null; // optional override anim state (e.g., dash)
 	h?: [number, number]; // optional health [current, max]
 };
@@ -23,9 +24,15 @@ export type P2PWelcomeMessage = {
 	peers: PeerId[];
 	host: PeerId;
 	room: string;
+	seed: string; // map generation seed
+	spawns: Record<PeerId, Vector3Tuple>; // initial spawn positions for peers
 };
 
-export type P2PPeerJoinMessage = { t: "peer-join"; id: PeerId };
+export type P2PPeerJoinMessage = {
+	t: "peer-join";
+	id: PeerId;
+	spawn: Vector3Tuple; // spawn position assigned by host
+};
 export type P2PPeerLeaveMessage = { t: "peer-leave"; id: PeerId };
 export type P2PPeerListMessage = { t: "peer-list"; peers: PeerId[] };
 
@@ -61,6 +68,21 @@ export type P2PApplyDamageMessage = {
 	proj?: string; // projectile id
 };
 
+export type P2PKillMessage = {
+	t: "kill";
+	to: PeerId; // victim peer
+	by?: PeerId | null;
+	proj?: string; // projectile id if relevant
+};
+
+export type P2PShotMessage = {
+	t: "shot";
+	id: string; // projectile id or shot event id
+	from: PeerId | null;
+	p: Vector3Tuple; // origin
+	d: Vector3Tuple; // normalized direction
+};
+
 // Obstacles HP sync
 export type P2PObstacleHpMessage = {
 	t: "ob-hp";
@@ -80,13 +102,16 @@ export type P2PMessage =
 	| P2PSpellCastMessage
 	| P2PProjectileDespawnMessage
 	| P2PApplyDamageMessage
+	| P2PKillMessage
+	| P2PShotMessage
 	| P2PObstacleHpMessage;
 
 export type RemotePlayerState = {
 	id: PeerId;
 	p: Vector3Tuple;
 	y: number;
-	ly?: number | null;
+	aim?: number | null;
+	fire?: boolean | null;
 	a?: AnimStateId | null;
 	h?: [number, number] | null;
 	last: number; // ms timestamp

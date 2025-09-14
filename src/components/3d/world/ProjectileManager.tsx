@@ -13,6 +13,7 @@ import FireballVisual from "@/components/3d/effects/Fireball";
 import BulletVisual from "@/components/3d/effects/Bullet";
 import ExplosionVisual from "@/components/3d/effects/Explosion";
 import type { PeerId, P2PMessage, RemotePlayerState } from "@/types/p2p";
+import { useCharacterUI } from "@/stores/character-ui";
 import { useObstacles } from "@/stores/obstacles";
 import { OBSTACLE_ITEMS } from "@/components/3d/props/obstacle-config";
 import { WORLD } from "@/config/world";
@@ -44,6 +45,12 @@ export type ProjectileManagerRef = {
 	) => void;
 };
 
+/**
+ * Manages projectile lifecycle and hit detection.
+ * Only the host performs collision checks and emits authoritative
+ * `damage` and `kill` messages. Clients merely simulate movement
+ * and await host validation before applying effects.
+ */
 export const ProjectileManager = forwardRef<
 	ProjectileManagerRef,
 	{
@@ -56,7 +63,7 @@ export const ProjectileManager = forwardRef<
 >(({ isHost, localId, getLocalPos, remotes, onNetSend }, ref) => {
 	const bolts = useRef<Map<string, { node: Group; p: Projectile }>>(new Map());
 	const tmpV = useMemo(() => new Vector3(), []);
-	const [version, setVersion] = useState(0); // trigger React re-render on spawn/despawn
+	const [_version, setVersion] = useState(0); // trigger React re-render on spawn/despawn
 	// Precompute static wall AABBs matching Ground walls
 	const walls = useMemo(() => {
 		const t = WORLD.wallThickness;
@@ -173,18 +180,31 @@ export const ProjectileManager = forwardRef<
 				const hitRadius = Math.max(0.2, pr.radius);
 				// Check local player if not fired by local
 				const loc = getLocalPos();
-				if (loc && pr.from !== localId) {
+				if (loc && localId && pr.from !== localId) {
 					const dx = ent.node.position.x - loc.x;
 					const dz = ent.node.position.z - loc.z;
 					if (dx * dx + dz * dz <= hitRadius * hitRadius) {
-						// Apply damage to local (authoritative host)
-						onNetSend({
-							t: "damage",
-							to: localId!,
-							amount: pr.damage ?? 20,
-							by: pr.from ?? undefined,
-							proj: id,
-						});
+						const dmg = pr.damage ?? 20;
+						const ui = useCharacterUI.getState();
+						const nextHp = Math.max(0, ui.hpCurrent - dmg);
+						ui.setHp(nextHp, ui.hpMax);
+						if (localId) {
+							onNetSend({
+								t: "damage",
+								to: localId,
+								amount: dmg,
+								by: pr.from ?? undefined,
+								proj: id,
+							});
+							if (nextHp <= 0) {
+								onNetSend({
+									t: "kill",
+									to: localId,
+									by: pr.from ?? undefined,
+									proj: id,
+								});
+							}
+						}
 						explodeAt.push([
 							ent.node.position.x,
 							ent.node.position.y,
@@ -210,13 +230,26 @@ export const ProjectileManager = forwardRef<
 					const dx = ent.node.position.x - r.p[0];
 					const dz = ent.node.position.z - r.p[2];
 					if (dx * dx + dz * dz <= hitRadius * hitRadius) {
+						const dmg = pr.damage ?? 20;
 						onNetSend({
 							t: "damage",
 							to: r.id,
-							amount: pr.damage ?? 20,
+							amount: dmg,
 							by: pr.from ?? undefined,
 							proj: id,
 						});
+						if (r.h) {
+							const nextHp = Math.max(0, r.h[0] - dmg);
+							r.h[0] = nextHp;
+							if (nextHp <= 0) {
+								onNetSend({
+									t: "kill",
+									to: r.id,
+									by: pr.from ?? undefined,
+									proj: id,
+								});
+							}
+						}
 						explodeAt.push([
 							ent.node.position.x,
 							ent.node.position.y,
