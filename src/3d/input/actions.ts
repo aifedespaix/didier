@@ -23,6 +23,7 @@ export type ActionId =
 	| "game.primary" // legacy alias (kept for compatibility)
 	| "game.secondary" // legacy alias (was RMB)
 	| "game.dash"
+	| "game.toggleTorch"
 	| "game.look" // analog delta (dx, dy)
 	| "game.pause"
 	// Camera controls
@@ -129,6 +130,12 @@ export const ACTIONS: Record<ActionId, ActionDef> = {
 	// Primary spell (A/Q). Use this for Spell #1.
 	"game.spell.1": {
 		id: "game.spell.1",
+		kind: "digital",
+		domain: "game",
+		contexts: ["gameplay"],
+	},
+	"game.toggleTorch": {
+		id: "game.toggleTorch",
 		kind: "digital",
 		domain: "game",
 		contexts: ["gameplay"],
