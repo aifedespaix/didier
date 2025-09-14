@@ -23,7 +23,7 @@ export function buildDefaultBindings(layout: KeyboardLayout): ContextBindings {
 		"Key:ShiftLeft": "game.sprint",
 		"Key:ShiftRight": "game.sprint",
 		"Mouse:Left": "game.fire",
-		// Do not bind RMB to a spell; RMB is used for move orders in-scene
+		"Mouse:Right": "game.toggleTorch",
 		"Key:KeyE": "game.dash",
 		// Pause/Menu
 		"Key:Escape": "ui.toggleMenu",

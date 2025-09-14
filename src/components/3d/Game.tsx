@@ -4,6 +4,7 @@ import type { RigidBodyApi } from "@react-three/rapier";
 import { Physics, useRapier } from "@react-three/rapier";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Color } from "three";
+import { useActionEvents } from "~/3d/input/hooks";
 import {
 	CameraController,
 	Ground,
@@ -30,17 +31,16 @@ import { useAim } from "~/stores/aim";
 import { useCastTransient } from "~/stores/cast";
 import { useCharacterUI } from "~/stores/character-ui";
 import { useObstacles } from "~/stores/obstacles";
+import type { Character } from "~/systems/character/Character";
 import { buildDefaultCharacter } from "~/systems/character/defaults";
 import { useP2PNetwork } from "~/systems/p2p/peer.client";
-import { useActionEvents } from "~/3d/input/hooks";
-import { FireballSpell } from "~/systems/spells/FireballSpell";
 import { BulletSpell } from "~/systems/spells/BulletSpell";
+import { FireballSpell } from "~/systems/spells/FireballSpell";
 import SpellCastInputAdapter from "~/systems/spells/SpellCastInputAdapter";
+import type { SpellContext, SpellResult } from "~/systems/spells/types";
 import type { AnimStateId } from "~/types/animation";
 import type { MoveTarget } from "~/types/game";
 import type { P2PMessage, P2PSpellCastMessage } from "~/types/p2p";
-import type { SpellContext, SpellResult } from "~/systems/spells/types";
-import type { Character } from "~/systems/character/Character";
 
 export function Game() {
 	// Cible de déplacement persistante vs. marqueur visuel (1s)
@@ -50,6 +50,7 @@ export function Game() {
 	const playerRef = useRef<RigidBodyApi | null>(null);
 	const animOverrideRef = useRef<AnimStateId | null>(null);
 	const [camFollow, setCamFollow] = useState<boolean>(true);
+	const [torchEnabled, setTorchEnabled] = useState(false);
 	const aimRef = useRef<[number, number, number] | null>(null);
 	const {
 		peerId,
@@ -123,6 +124,11 @@ export function Game() {
 		);
 	});
 
+	useActionEvents("game.toggleTorch", (ev) => {
+		if (ev.type !== "digital" || ev.phase !== "pressed") return;
+		setTorchEnabled((v) => !v);
+	});
+
 	// Wire custom P2P messages for spells/projectiles
 	useEffect(() => {
 		return onMessage((sender, msg: P2PMessage) => {
@@ -166,11 +172,11 @@ export function Game() {
 					);
 				}}
 			>
-				{/* Darker global lighting to emphasize the player torch */}
-				<ambientLight intensity={0.08} />
+				{/* Brighter global lighting; torch provides optional focus */}
+				<ambientLight intensity={0.2} />
 				<directionalLight
 					position={[5, 8, 5]}
-					intensity={0.2}
+					intensity={0.35}
 					color={0x6f7a88}
 					castShadow
 				/>
@@ -183,7 +189,7 @@ export function Game() {
 					<Ground />
 					<Obstacles />
 					{/* Player forward light cone (torch-like) */}
-					<PlayerLightCone playerRef={playerRef} />
+					{torchEnabled && <PlayerLightCone playerRef={playerRef} />}
 					<Player
 						target={moveTarget}
 						bodyRef={playerRef}
