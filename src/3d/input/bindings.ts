@@ -10,90 +10,92 @@ export type BindingProfile = Record<KeyCode, ActionId>;
 
 export type ContextBindings = Record<InputContextId, BindingProfile>;
 
+export type KeyboardLayout = "qwerty" | "azerty";
+
 // Defaults (Many->One OK, One->One inverse validé au runtime)
-export const DEFAULT_BINDINGS: ContextBindings = {
-  gameplay: {
-    // Mouvement (AZERTY+QWERTY amicaux)
-    "Key:KeyW": "game.move.forward",
-    "Key:KeyZ": "game.move.forward",
-    "Key:ArrowUp": "game.move.forward",
-    "Key:KeyS": "game.move.back",
-    "Key:ArrowDown": "game.move.back",
-    // Reserve A/Q for Spell #1; avoid binding to move.left
-    // Provide Arrow keys for lateral movement by default
-    "Key:ArrowLeft": "game.move.left",
-    "Key:KeyD": "game.move.right",
-    "Key:ArrowRight": "game.move.right",
-    "Key:Space": "game.jump",
-    "Key:ShiftLeft": "game.sprint",
-    "Key:ShiftRight": "game.sprint",
+export function buildDefaultBindings(layout: KeyboardLayout): ContextBindings {
+	const gameplay: BindingProfile = {
+		"Key:ArrowUp": "game.move.forward",
+		"Key:ArrowDown": "game.move.back",
+		"Key:ArrowLeft": "game.move.left",
+		"Key:ArrowRight": "game.move.right",
+		"Key:Space": "game.jump",
+		"Key:ShiftLeft": "game.sprint",
+		"Key:ShiftRight": "game.sprint",
+		"Mouse:Left": "game.attack",
+		// Do not bind RMB to a spell; RMB is used for move orders in-scene
+		"Key:KeyE": "game.dash",
+		// Pause/Menu
+		"Key:Escape": "ui.toggleMenu",
+		// Camera controls
+		"Key:KeyL": "camera.follow.toggle",
+		"Mouse:WheelUp": "camera.zoom.in",
+		"Mouse:WheelDown": "camera.zoom.out",
+	};
 
-    // Actions
-    // Reserve LMB for future auto-attack (does nothing yet)
-    "Mouse:Left": "game.attack",
-    // Primary spell (AZERTY/QWERTY friendly): A on QWERTY, Q on AZERTY
-    "Key:KeyA": "game.spell.1",
-    "Key:KeyQ": "game.spell.1",
-    // Do not bind RMB to a spell; RMB is used for move orders in-scene
-    "Key:KeyE": "game.dash",
+	if (layout === "azerty") {
+		gameplay["Key:KeyZ"] = "game.move.forward";
+		gameplay["Key:KeyS"] = "game.move.back";
+		gameplay["Key:KeyQ"] = "game.move.left";
+		gameplay["Key:KeyD"] = "game.move.right";
+		gameplay["Key:KeyA"] = "game.spell.1";
+	} else {
+		gameplay["Key:KeyW"] = "game.move.forward";
+		gameplay["Key:KeyS"] = "game.move.back";
+		gameplay["Key:KeyA"] = "game.move.left";
+		gameplay["Key:KeyD"] = "game.move.right";
+		gameplay["Key:KeyQ"] = "game.spell.1";
+	}
 
-    // Mouselook analog -> action game.look (résolu via Mouse:Move côté device)
-    // Note: l'entrée analogique n'a pas besoin d'une entrée explicite ici,
-    // elle est routée par le device en fonction du contexte actif.
+	const menu: BindingProfile = {
+		// Navigation UI
+		"Key:Enter": "ui.confirm",
+		"Key:NumpadEnter": "ui.confirm",
+		"Mouse:Left": "ui.confirm",
+		"Key:Escape": "ui.cancel",
+		"Mouse:Right": "ui.cancel",
+		"Key:ArrowUp": "ui.up",
+		"Key:ArrowDown": "ui.down",
+		"Key:ArrowLeft": "ui.left",
+		"Key:ArrowRight": "ui.right",
+		"Mouse:WheelUp": "ui.up",
+		"Mouse:WheelDown": "ui.down",
+		// Allow toggling follow camera from menu too (handy)
+		"Key:KeyL": "camera.follow.toggle",
+	};
 
-    // Pause/Menu
-    "Key:Escape": "ui.toggleMenu",
+	return { gameplay, menu };
+}
 
-    // Camera controls
-    "Key:KeyL": "camera.follow.toggle",
-    "Mouse:WheelUp": "camera.zoom.in",
-    "Mouse:WheelDown": "camera.zoom.out",
-  },
-  menu: {
-    // Navigation UI
-    "Key:Enter": "ui.confirm",
-    "Key:NumpadEnter": "ui.confirm",
-    "Mouse:Left": "ui.confirm",
-    "Key:Escape": "ui.cancel",
-    "Mouse:Right": "ui.cancel",
-    "Key:ArrowUp": "ui.up",
-    "Key:ArrowDown": "ui.down",
-    "Key:ArrowLeft": "ui.left",
-    "Key:ArrowRight": "ui.right",
-    "Mouse:WheelUp": "ui.up",
-    "Mouse:WheelDown": "ui.down",
-    // Allow toggling follow camera from menu too (handy)
-    "Key:KeyL": "camera.follow.toggle",
-  },
-};
+export const DEFAULT_BINDINGS = buildDefaultBindings("qwerty");
 
 export interface ValidationIssue {
-  key: KeyCode;
-  actions: ActionId[]; // >1 si conflit
+	key: KeyCode;
+	actions: ActionId[]; // >1 si conflit
 }
 
 export function validateOneToOne(profile: BindingProfile): ValidationIssue[] {
-  const map = new Map<KeyCode, Set<ActionId>>();
-  for (const [key, action] of Object.entries(profile)) {
-    if (!map.has(key)) map.set(key, new Set());
-    map.get(key)!.add(action);
-  }
-  const issues: ValidationIssue[] = [];
-  for (const [key, set] of map) {
-    if (set.size > 1) {
-      issues.push({ key, actions: Array.from(set) });
-    }
-  }
-  return issues;
+	const map = new Map<KeyCode, Set<ActionId>>();
+	for (const [key, action] of Object.entries(profile)) {
+		if (!map.has(key)) map.set(key, new Set());
+		map.get(key)?.add(action);
+	}
+	const issues: ValidationIssue[] = [];
+	for (const [key, set] of map) {
+		if (set.size > 1) {
+			issues.push({ key, actions: Array.from(set) });
+		}
+	}
+	return issues;
 }
 
 export function mergeBindings(
-  base: ContextBindings,
-  overrides?: Partial<ContextBindings>,
+	base: ContextBindings,
+	overrides?: Partial<ContextBindings>,
 ): ContextBindings {
-  const out: ContextBindings = { gameplay: {}, menu: {} } as ContextBindings;
-  for (const ctx of Object.keys(out) as InputContextId[]) {
-    out[ctx] = { ...(base[ctx] || {}), ...(overrides?.[ctx] || {}) };
-  }
-  return out;
+	const out: ContextBindings = { gameplay: {}, menu: {} } as ContextBindings;
+	for (const ctx of Object.keys(out) as InputContextId[]) {
+		out[ctx] = { ...(base[ctx] || {}), ...(overrides?.[ctx] || {}) };
+	}
+	return out;
 }

@@ -60,6 +60,7 @@ export function Game() {
 		pingAll,
 		send,
 		onMessage,
+		// biome-ignore lint/suspicious/noExplicitAny: P2P helper uses a loose body reference
 	} = useP2PNetwork(playerRef as any, {
 		autoConnectFromQuery: true,
 		sendHz: 20,
@@ -118,7 +119,7 @@ export function Game() {
 					damage: msg.damage,
 				});
 			} else if (msg.t === "proj-despawn") {
-				projRef.current?.despawn(msg.id, msg.reason, msg.pos as any);
+				projRef.current?.despawn(msg.id, msg.reason, msg.pos);
 			} else if (msg.t === "damage") {
 				if (peerId && msg.to === peerId) {
 					const st = useCharacterUI.getState();
@@ -159,17 +160,7 @@ export function Game() {
 					maxCcdSubsteps={2}
 					predictionDistance={0.01}
 				>
-					<Ground
-						onRightClick={(x, z) => {
-							setMoveTarget({ x, z });
-							setMarkerTarget({ x, z });
-							if (markerTimer.current) window.clearTimeout(markerTimer.current);
-							markerTimer.current = window.setTimeout(
-								() => setMarkerTarget(null),
-								1000,
-							);
-						}}
-					/>
+					<Ground />
 					<Obstacles />
 					{/* Player forward light cone (torch-like) */}
 					<PlayerLightCone playerRef={playerRef} />
@@ -177,8 +168,8 @@ export function Game() {
 						target={moveTarget}
 						bodyRef={playerRef}
 						animOverrideRef={animOverrideRef}
-						performCastRef={performCastRef as any}
-						performDashRef={performDashRef as any}
+						performCastRef={performCastRef}
+						performDashRef={performDashRef}
 						onCancelMove={() => setMoveTarget(null)}
 						onCastMagic={() => {
 							performPrimaryCast(
@@ -193,10 +184,12 @@ export function Game() {
 						}}
 					/>
 					<ProjectileManager
+						// biome-ignore lint/suspicious/noExplicitAny: forwardRef type mismatch
 						ref={projRef as any}
 						isHost={isHost}
 						localId={peerId}
 						getLocalPos={() => playerRef.current?.translation() ?? null}
+						// biome-ignore lint/suspicious/noExplicitAny: remote state collection is loosely typed
 						remotes={remotes as any}
 						onNetSend={(msg) => send(msg)}
 					/>
@@ -275,6 +268,7 @@ export function Game() {
 				error={error}
 				peers={peers}
 				hostId={hostId}
+				// biome-ignore lint/suspicious/noExplicitAny: peers info typing to be refined
 				peersInfo={peersInfo as any}
 				onReconnect={() => {
 					// Combine reconnect + ping to nudge liveness quickly
@@ -287,6 +281,7 @@ export function Game() {
 				}}
 				onPing={pingAll}
 			/>
+			{/* biome-ignore lint/suspicious/noExplicitAny: HUD expects loose peer info typing */}
 			<PingHUD peers={peersInfo as any} />
 			{/* Loading overlay (global) - waits for physics + first frame */}
 			<LoaderOverlay
@@ -302,10 +297,10 @@ function performPrimaryCast(
 	body: RigidBodyApi | null,
 	projMgr: ProjectileManagerRef | null,
 	peerId: string | null,
-	send: (m: any) => void,
+	send: (m: unknown) => void,
 	aimPoint: [number, number, number] | null,
 	spell: {
-		cast: (ctx: any, character: any) => any;
+		cast: (ctx: unknown, character: unknown) => unknown;
 		getConfig: () => {
 			speed: number;
 			range: number;
@@ -319,7 +314,11 @@ function performPrimaryCast(
 		console.warn("performPrimaryCast: missing body; aborting cast");
 		return;
 	}
-	if (!spell || typeof (spell as any).cast !== "function") {
+	if (
+		!spell ||
+		typeof (spell as { cast?: (ctx: unknown, character: unknown) => unknown })
+			.cast !== "function"
+	) {
 		console.warn("performPrimaryCast: invalid spell provided; aborting cast");
 		return;
 	}
