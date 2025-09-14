@@ -8,19 +8,16 @@ import { useActionEvents } from "~/3d/input/hooks";
 import {
 	CameraController,
 	Ground,
-	Minimap,
 	NetworkPanel,
 	Obstacles,
 	Player,
 	RemotePlayer,
-	TargetMarker,
 	ViewPanel,
 } from "~/components/3d";
 import { PlayerLightCone } from "~/components/3d/effects/PlayerLightCone";
 import { HealthBar } from "~/components/3d/hud/HealthBar";
 import { MenuManager } from "~/components/3d/hud/MenuModals";
 import { PingHUD } from "~/components/3d/hud/PingHUD";
-import { SpellBar } from "~/components/3d/hud/SpellBar";
 import ProjectileManager, {
 	type ProjectileManagerRef,
 	type SpawnProjectileInput,
@@ -43,10 +40,8 @@ import type {
 } from "~/types/p2p";
 
 export function Game() {
-	// Cible de déplacement persistante vs. marqueur visuel (1s)
+	// Cible de déplacement persistante (click-to-move)
 	const [moveTarget, setMoveTarget] = useState<MoveTarget>(null);
-	const [markerTarget, setMarkerTarget] = useState<MoveTarget>(null);
-	const markerTimer = useRef<number | null>(null);
 	const playerRef = useRef<RigidBodyApi | null>(null);
 	const animOverrideRef = useRef<AnimStateId | null>(null);
 	const [camFollow, setCamFollow] = useState<boolean>(true);
@@ -228,7 +223,6 @@ export function Game() {
 					/>
 				</Physics>
 
-				<TargetMarker target={markerTarget} />
 				<CameraController
 					targetRef={playerRef}
 					follow={camFollow}
@@ -240,25 +234,8 @@ export function Game() {
 			{/* Fog settings removed */}
 
 			<ViewPanel camFollow={camFollow} />
-			<SpellBar />
 			<HealthBar />
 			<MenuManager />
-
-			{/* Minimap bottom-right */}
-			<Minimap
-				playerRef={playerRef}
-				target={markerTarget}
-				onSetTarget={(x, z) => {
-					setMoveTarget({ x, z });
-					setMarkerTarget({ x, z });
-					if (markerTimer.current) window.clearTimeout(markerTimer.current);
-					markerTimer.current = window.setTimeout(
-						() => setMarkerTarget(null),
-						1000,
-					);
-				}}
-				width={160}
-			/>
 			{/* P2P status small badge bottom-left */}
 			<NetworkPanel
 				room={room}
