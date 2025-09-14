@@ -1,18 +1,13 @@
 "use client";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { RigidBodyApi } from "@react-three/rapier";
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import { Vector3 } from "three";
 import { useActionEvents } from "~/3d/input/hooks";
 
-interface CameraPreset {
-	/** Vertical distance from the target in world units. */
-	radius: number;
-	/** Camera pitch in degrees. 90° yields a top-down view. */
-	pitchDeg: number;
-	/** Camera yaw in degrees. */
-	yawDeg: number;
-}
+const MIN_RADIUS = 10;
+const MAX_RADIUS = 40;
+const ZOOM_STEP = 2;
 
 export interface CameraControllerProps {
 	targetRef: React.MutableRefObject<RigidBodyApi | null>;
@@ -27,10 +22,20 @@ export function CameraController({
 }: CameraControllerProps) {
 	const { camera } = useThree();
 
-	const preset: CameraPreset = useMemo(
-		() => ({ radius: 20, pitchDeg: 90, yawDeg: 0 }),
-		[],
-	);
+	// Camera vertical distance from the target in world units.
+	const radius = useRef(20);
+
+	useActionEvents("camera.zoom.in", (ev) => {
+		if (ev.type === "digital" && ev.phase === "pressed") {
+			radius.current = Math.max(MIN_RADIUS, radius.current - ZOOM_STEP);
+		}
+	});
+
+	useActionEvents("camera.zoom.out", (ev) => {
+		if (ev.type === "digital" && ev.phase === "pressed") {
+			radius.current = Math.min(MAX_RADIUS, radius.current + ZOOM_STEP);
+		}
+	});
 
 	useActionEvents("camera.follow.toggle", (ev) => {
 		if (ev.type === "digital" && ev.phase === "pressed") setFollow((f) => !f);
@@ -54,7 +59,7 @@ export function CameraController({
 
 		const desired = desiredPos.current.set(
 			target.x,
-			target.y + preset.radius,
+			target.y + radius.current,
 			target.z,
 		);
 
