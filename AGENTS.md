@@ -31,6 +31,8 @@ The ultimate goal: **create a clean, maintainable, and modular architecture** th
 
 ## 3. 🧩 Project Architecture
 
+Designed for a fast-paced top-down "online miami" shooter, the architecture prioritizes responsive controls and low-latency peer-to-peer interactions.
+
 ### 3.1 Recommended Folder Structure
 
 ```bash
@@ -72,11 +74,24 @@ This separation allows **scalability, reusability, and modularity**.
 | **System**        | **Purpose**                                     |
 | ----------------- | ----------------------------------------------- |
 | InputSystem       | Handle keyboard, mouse, gamepad & mobile inputs |
+| ProjectileSystem  | Spawn and reconcile projectiles and instant shots |
 | PhysicsSystem     | Sync Rapier bodies with R3F meshes              |
 | RenderSystem      | Manage optimized frame rendering                |
 | AnimationSystem   | Coordinate transitions and keyframes            |
 | InteractionSystem | Handle click/tap detection on 3D objects        |
 | UISystem          | Synchronize HUD elements with game state        |
+
+### 4.3 Control Scheme
+
+- Use a fixed top-down camera with slight tilt for situational awareness.
+- Rotate characters toward the mouse cursor or analog stick direction.
+- Allow players to rebind all actions dynamically at runtime.
+
+### 4.4 Host Authority & P2P Projectile Sync
+
+- The host is authoritative for spawning and resolving projectile collisions.
+- Peers simulate projectile motion locally and reconcile with host updates.
+- Instant shots (hitscan) require host confirmation before applying effects.
 
 ---
 
@@ -159,26 +174,27 @@ bun x shadcn@latest add dropdown-menu tooltip toast
 | Commits    | Follow [Conventional Commits](https://www.conventionalcommits.org/) |
 | Testing    | Use `Vitest` + `Playwright` for automated testing                   |
 
-### 8.1 Naming Conventions (Spells)
+### 8.1 Naming Conventions (Projectiles & Instant Shots)
 
 - Abstract/base classes MUST live in files prefixed with an underscore `_`.
-  - Example: `src/systems/spells/_Spell.ts` defines the abstract base class for spells.
-- Concrete spell implementations inherit from the base class and live alongside it without the underscore.
-  - Example: `src/systems/spells/FireballSpell.ts` extends the base spell.
-- Keep spell configs encapsulated in their class (speed, range, radius, damage) so that behavior is consistent across all targets.
+  - Example: `src/systems/projectiles/_Projectile.ts` defines the base projectile contract.
+- Concrete projectile or instant-shot implementations live alongside the base without the underscore.
+  - Example: `src/systems/projectiles/RocketProjectile.ts` extends the base projectile.
+- Keep projectile configs encapsulated in their class (speed, range, radius, damage) so that behavior remains consistent across targets.
 
 ---
 
 ## 9. 🚀 AI Roadmap
 
-| **Task**                              | **Agent**     | **Status** |
-| ------------------------------------- | ------------- | ---------- |
-| Generate base Next.js + R3F structure | Codex         | ✅         |
-| Integrate Rapier physics & tests      | Codex         | ⏳         |
-| Optimize shaders & lighting           | Prompting+Dev | ⏳         |
-| Implement ECS-based architecture      | Codex         | ⏳         |
-| Build HUD & menus                     | UI/UX         | ⏳         |
-| Multiplayer integration (WebRTC/P2P)  | Prompting     | 🔜         |
+| **Task**                                      | **Agent**     | **Status** |
+| --------------------------------------------- | ------------- | ---------- |
+| Generate base Next.js + R3F structure         | Codex         | ✅         |
+| Integrate Rapier physics & tests              | Codex         | ⏳         |
+| Optimize shaders & lighting                   | Prompting+Dev | ⏳         |
+| Implement ECS-based architecture              | Codex         | ⏳         |
+| Build HUD & menus                             | UI/UX         | ⏳         |
+| Implement "online miami" control scheme      | Codex         | 🔜         |
+| P2P projectile sync & host authority          | Prompting     | 🔜         |
 
 ---
 
