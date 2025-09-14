@@ -5,24 +5,24 @@ export type Vector3Tuple = [number, number, number];
 import type { AnimStateId } from "@/types/animation";
 
 export type P2PStateMessage = {
-  t: "state";
-  p: Vector3Tuple; // position [x,y,z]
-  y: number; // yaw in radians
-  ly?: number; // optional light yaw in radians (aim/torch direction)
-  a?: AnimStateId | null; // optional override anim state (e.g., dash)
-  h?: [number, number]; // optional health [current, max]
+	t: "state";
+	p: Vector3Tuple; // position [x,y,z]
+	y: number; // yaw in radians
+	ly?: number; // optional light yaw in radians (aim/torch direction)
+	a?: AnimStateId | null; // optional override anim state (e.g., dash)
+	h?: [number, number]; // optional health [current, max]
 };
 
 export type P2PHelloMessage = {
-  t: "hello";
-  name?: string;
+	t: "hello";
+	name?: string;
 };
 
 export type P2PWelcomeMessage = {
-  t: "welcome";
-  peers: PeerId[];
-  host: PeerId;
-  room: string;
+	t: "welcome";
+	peers: PeerId[];
+	host: PeerId;
+	room: string;
 };
 
 export type P2PPeerJoinMessage = { t: "peer-join"; id: PeerId };
@@ -34,60 +34,60 @@ export type P2PPongMessage = { t: "pong"; ts: number; n?: number };
 
 // Spells & combat
 export type P2PSpellCastMessage = {
-  t: "spell-cast";
-  id: string; // projectile id
-  from: PeerId | null;
-  kind: "magic-bolt" | string;
-  p: Vector3Tuple; // origin
-  d: Vector3Tuple; // normalized direction
-  speed: number;
-  range: number;
-  radius: number;
-  damage?: number;
+	t: "spell-cast";
+	id: string; // projectile id
+	from: PeerId | null;
+	kind: "magic-bolt" | "fireball" | "bullet" | string;
+	p: Vector3Tuple; // origin
+	d: Vector3Tuple; // normalized direction
+	speed: number;
+	range: number;
+	radius: number;
+	damage?: number;
 };
 
 export type P2PProjectileDespawnMessage = {
-  t: "proj-despawn";
-  id: string;
-  reason?: "hit" | "end" | string;
-  pos?: Vector3Tuple; // optional impact position for visuals
+	t: "proj-despawn";
+	id: string;
+	reason?: "hit" | "end" | string;
+	pos?: Vector3Tuple; // optional impact position for visuals
 };
 
 export type P2PApplyDamageMessage = {
-  t: "damage";
-  to: PeerId; // target peer
-  amount: number;
-  by?: PeerId | null;
-  proj?: string; // projectile id
+	t: "damage";
+	to: PeerId; // target peer
+	amount: number;
+	by?: PeerId | null;
+	proj?: string; // projectile id
 };
 
 // Obstacles HP sync
 export type P2PObstacleHpMessage = {
-  t: "ob-hp";
-  id: string; // obstacle id
-  hp: number; // new hp value (authoritative)
+	t: "ob-hp";
+	id: string; // obstacle id
+	hp: number; // new hp value (authoritative)
 };
 
 export type P2PMessage =
-  | P2PStateMessage
-  | P2PHelloMessage
-  | P2PWelcomeMessage
-  | P2PPeerJoinMessage
-  | P2PPeerLeaveMessage
-  | P2PPeerListMessage
-  | P2PPingMessage
-  | P2PPongMessage
-  | P2PSpellCastMessage
-  | P2PProjectileDespawnMessage
-  | P2PApplyDamageMessage
-  | P2PObstacleHpMessage;
+	| P2PStateMessage
+	| P2PHelloMessage
+	| P2PWelcomeMessage
+	| P2PPeerJoinMessage
+	| P2PPeerLeaveMessage
+	| P2PPeerListMessage
+	| P2PPingMessage
+	| P2PPongMessage
+	| P2PSpellCastMessage
+	| P2PProjectileDespawnMessage
+	| P2PApplyDamageMessage
+	| P2PObstacleHpMessage;
 
 export type RemotePlayerState = {
-  id: PeerId;
-  p: Vector3Tuple;
-  y: number;
-  ly?: number | null;
-  a?: AnimStateId | null;
-  h?: [number, number] | null;
-  last: number; // ms timestamp
+	id: PeerId;
+	p: Vector3Tuple;
+	y: number;
+	ly?: number | null;
+	a?: AnimStateId | null;
+	h?: [number, number] | null;
+	last: number; // ms timestamp
 };

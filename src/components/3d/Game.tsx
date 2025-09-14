@@ -23,6 +23,7 @@ import { PingHUD } from "~/components/3d/hud/PingHUD";
 import { SpellBar } from "~/components/3d/hud/SpellBar";
 import ProjectileManager, {
 	type ProjectileManagerRef,
+	type SpawnProjectileInput,
 } from "~/components/3d/world/ProjectileManager";
 import { LoaderOverlay } from "~/components/ui/loader-overlay";
 import { useAim } from "~/stores/aim";
@@ -31,11 +32,15 @@ import { useCharacterUI } from "~/stores/character-ui";
 import { useObstacles } from "~/stores/obstacles";
 import { buildDefaultCharacter } from "~/systems/character/defaults";
 import { useP2PNetwork } from "~/systems/p2p/peer.client";
+import { useActionEvents } from "~/3d/input/hooks";
 import { FireballSpell } from "~/systems/spells/FireballSpell";
+import { BulletSpell } from "~/systems/spells/BulletSpell";
 import SpellCastInputAdapter from "~/systems/spells/SpellCastInputAdapter";
 import type { AnimStateId } from "~/types/animation";
 import type { MoveTarget } from "~/types/game";
-import type { P2PMessage } from "~/types/p2p";
+import type { P2PMessage, P2PSpellCastMessage } from "~/types/p2p";
+import type { SpellContext, SpellResult } from "~/systems/spells/types";
+import type { Character } from "~/systems/character/Character";
 
 export function Game() {
 	// Cible de déplacement persistante vs. marqueur visuel (1s)
@@ -102,6 +107,21 @@ export function Game() {
 	const character = useMemo(() => buildDefaultCharacter(), []);
 	const dashRange = (character.dashDurationMs / 1000) * character.dashSpeed;
 	const fireballSpell = useMemo(() => new FireballSpell(), []);
+	const bulletSpell = useMemo(() => new BulletSpell(), []);
+
+	useActionEvents("game.fire", (ev) => {
+		if (ev.type !== "digital" || ev.phase !== "pressed") return;
+		if (useCastTransient.getState().phase !== "idle") return;
+		performPrimaryCast(
+			playerRef.current,
+			projRef.current,
+			peerId,
+			send,
+			aimPoint ?? null,
+			bulletSpell,
+			character,
+		);
+	});
 
 	// Wire custom P2P messages for spells/projectiles
 	useEffect(() => {
@@ -297,10 +317,10 @@ function performPrimaryCast(
 	body: RigidBodyApi | null,
 	projMgr: ProjectileManagerRef | null,
 	peerId: string | null,
-	send: (m: unknown) => void,
+	send: (m: P2PMessage) => void,
 	aimPoint: [number, number, number] | null,
 	spell: {
-		cast: (ctx: unknown, character: unknown) => unknown;
+		cast: (ctx: SpellContext, character: Character) => SpellResult;
 		getConfig: () => {
 			speed: number;
 			range: number;
@@ -308,26 +328,22 @@ function performPrimaryCast(
 			damage: number;
 		};
 	},
-	character?: ReturnType<typeof buildDefaultCharacter>,
+	character?: Character,
 ) {
 	if (!body) {
 		console.warn("performPrimaryCast: missing body; aborting cast");
 		return;
 	}
-	if (
-		!spell ||
-		typeof (spell as { cast?: (ctx: unknown, character: unknown) => unknown })
-			.cast !== "function"
-	) {
+	if (!spell || typeof spell.cast !== "function") {
 		console.warn("performPrimaryCast: invalid spell provided; aborting cast");
 		return;
 	}
 	const char = character ?? buildDefaultCharacter();
 	const HALF_Y = (char.skin.fitHeight * char.skin.scale) / 2;
-	const ctx = {
+	const ctx: SpellContext = {
 		body,
 		visualQuaternion: null,
-		setAnimOverride: (_st: any, _dur?: number) => {},
+		setAnimOverride: (_st: AnimStateId | null, _dur?: number) => {},
 		spawnProjectile: (params: {
 			kind: string;
 			speed: number;
@@ -363,7 +379,7 @@ function performPrimaryCast(
 			];
 			const dir: [number, number, number] = [dirX, 0, dirZ];
 			const id = `proj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-			const proj = {
+			const proj: SpawnProjectileInput = {
 				id,
 				from: peerId ?? null,
 				kind: params.kind,
@@ -376,7 +392,7 @@ function performPrimaryCast(
 			};
 			try {
 				if (projMgr && typeof projMgr.spawn === "function") {
-					projMgr.spawn(proj as any);
+					projMgr.spawn(proj);
 				} else {
 					console.warn(
 						"performPrimaryCast: projMgr not ready; local spawn skipped",
@@ -386,7 +402,8 @@ function performPrimaryCast(
 				console.error("performPrimaryCast: error spawning projectile", e);
 			}
 			try {
-				send({ t: "spell-cast", ...(proj as any) } as any);
+				const msg: P2PSpellCastMessage = { t: "spell-cast", ...proj };
+				send(msg);
 			} catch (e) {
 				console.error(
 					"performPrimaryCast: error sending spell-cast message",
@@ -396,7 +413,7 @@ function performPrimaryCast(
 		},
 	};
 	try {
-		(spell as any).cast(ctx, char as any);
+		spell.cast(ctx, char);
 	} catch (e) {
 		console.error("performPrimaryCast: spell.cast threw", e);
 	}
