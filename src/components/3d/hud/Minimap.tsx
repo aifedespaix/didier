@@ -5,6 +5,7 @@ import { HALF, WORLD } from "@/config/world";
 import type { MoveTarget } from "@/types/game";
 import { OBSTACLE_ITEMS } from "@/components/3d/props/obstacle-config";
 import { useObstacles } from "@/stores/obstacles";
+// Fog-of-war removed; minimap now shows geometry/targets only
 
 type MinimapProps = {
   playerRef: React.MutableRefObject<RigidBodyApi | null>;
@@ -17,13 +18,14 @@ export function Minimap({
   playerRef,
   target,
   onSetTarget,
-  width = 220,
+  width = 180,
 }: MinimapProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const height = Math.round((width / WORLD.sizeX) * WORLD.sizeZ); // keep aspect 150:200
   const obs = useObstacles((s) => s.obstacles);
   const aliveById = useRef<Record<string, number>>({});
   aliveById.current = Object.fromEntries(obs.map((o) => [o.id, o.hp]));
+  // no fog subscriptions
 
   // Map world XZ -> inner minimap pixels (0..innerW, 0..innerH)
   const worldToMini = useCallback(
@@ -61,8 +63,8 @@ export function Minimap({
 
       // Background panel
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "rgba(10,12,16,0.85)";
-      ctx.strokeStyle = "rgba(255,255,255,0.15)";
+      ctx.fillStyle = "rgba(10,12,16,0.55)";
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
       roundRect(ctx, 0, 0, width, height, 10);
       ctx.fill();
       ctx.stroke();
@@ -72,8 +74,8 @@ export function Minimap({
       ctx.translate(8, 8);
       const innerW = width - 16;
       const innerH = height - 16;
-      ctx.fillStyle = "#1f1640"; // dark purple
-      ctx.strokeStyle = "#5b21b6";
+      ctx.fillStyle = "rgba(31,22,64,0.35)"; // dark purple, translucent
+      ctx.strokeStyle = "rgba(91,33,182,0.6)";
       roundRect(ctx, 0, 0, innerW, innerH, 6);
       ctx.fill();
       ctx.stroke();
@@ -86,6 +88,8 @@ export function Minimap({
       ctx.strokeStyle = "#7c3aed";
       ctx.lineWidth = 2;
       ctx.strokeRect(0, 0, innerW, innerH);
+
+      
 
       // Obstacles (only alive)
       ctx.fillStyle = "#6d28d9";
@@ -122,6 +126,8 @@ export function Minimap({
         ctx.arc(mx, my, 4, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // no fog overlay
 
       ctx.restore();
       raf = requestAnimationFrame(draw);

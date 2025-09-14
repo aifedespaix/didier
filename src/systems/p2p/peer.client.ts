@@ -25,6 +25,7 @@ export type UseP2POptions = {
   debug?: boolean; // console.debug logs
   getAnimOverride?: () => import("@/types/animation").AnimStateId | null;
   getHp?: () => { cur: number; max: number } | null;
+  getLightYaw?: () => number | null; // direction of player's primary light/aim (radians)
   // Safety controls
   maxPeers?: number; // hard cap for concurrent peer connections (open+pending)
   maxPending?: number; // cap for in-flight dials to avoid bursts
@@ -381,7 +382,7 @@ export function useP2PNetwork(
         break;
       }
       case "state": {
-        const st: RemotePlayerState = { id: sender, p: msg.p, y: msg.y, a: (msg as any).a ?? null, h: (msg as any).h ?? null, last: now() };
+        const st: RemotePlayerState = { id: sender, p: msg.p, y: msg.y, ly: (msg as any).ly ?? null, a: (msg as any).a ?? null, h: (msg as any).h ?? null, last: now() };
         // Track last time we received state from this sender (for liveness/recovery)
         lastStateRecvRef.current.set(sender, st.last);
         setRemotes((prev) => {
@@ -489,7 +490,8 @@ export function useP2PNetwork(
     }
     const a = getAnimOverride ? getAnimOverride() : null;
     const hp = options?.getHp ? options.getHp() : null;
-    const payload: P2PStateMessage = { t: "state", p, y, a: a ?? undefined, h: hp ? [hp.cur, hp.max] : undefined };
+    const ly = options?.getLightYaw ? options.getLightYaw() : undefined;
+    const payload: P2PStateMessage = { t: "state", p, y, ly: typeof ly === "number" ? ly : undefined, a: a ?? undefined, h: hp ? [hp.cur, hp.max] : undefined };
     safeSend(conn, payload);
   }
 
@@ -511,7 +513,8 @@ export function useP2PNetwork(
           lastYawRef.current = yaw;
           const a = getAnimOverride ? getAnimOverride() : null;
           const hp = options?.getHp ? options.getHp() : null;
-          const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, a: a ?? undefined, h: hp ? [hp.cur, hp.max] : undefined };
+          const ly = options?.getLightYaw ? options.getLightYaw() : undefined;
+          const payload: P2PStateMessage = { t: "state", p: [tr.x, tr.y, tr.z], y: yaw, ly: typeof ly === "number" ? ly : undefined, a: a ?? undefined, h: hp ? [hp.cur, hp.max] : undefined };
           broadcast(payload);
         }
       }

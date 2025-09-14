@@ -43,10 +43,11 @@ export function AimVisualRoot({ playerRef, visible, range, type = "arrow", color
     const w = 0.5; // base width of head
     const h = Math.max(0.12, headLen);
     const shape = new Shape();
-    shape.moveTo(0, 0);
-    shape.lineTo(-w / 2, -h);
-    shape.lineTo(w / 2, -h);
-    shape.lineTo(0, 0);
+    // Base at y=0, tip at y=-h so after -X rotation it points toward +Z
+    shape.moveTo(0, -h); // tip forward (+Z after rotation)
+    shape.lineTo(w / 2, 0); // right base
+    shape.lineTo(-w / 2, 0); // left base
+    shape.lineTo(0, -h);
     return new ShapeGeometry(shape);
   }, [headLen]);
   const headMat = useMemo(() => new MeshStandardMaterial({ color: colorStyle, emissive: colorStyle, transparent: true, opacity: 0.5, depthWrite: false }), [colorStyle]);
@@ -85,8 +86,8 @@ export function AimVisualRoot({ playerRef, visible, range, type = "arrow", color
         <>
           {/* Shaft */}
           <mesh rotation-x={-Math.PI / 2} position={[0, 0.001, shaftLen / 2]} geometry={shaftGeom} material={shaftMat} />
-          {/* Head as triangle */}
-          <mesh rotation-x={-Math.PI / 2} position={[0, 0.001, shaftLen + headLen * 0.5]} geometry={headGeom} material={headMat} />
+          {/* Head as triangle (base flush with shaft end) */}
+          <mesh rotation-x={-Math.PI / 2} position={[0, 0.001, shaftLen]} geometry={headGeom} material={headMat} />
         </>
       )}
       {type === "line" && <mesh rotation-x={-Math.PI / 2} position={[0, 0.001, range / 2]} geometry={lineGeom} material={lineMat} />}

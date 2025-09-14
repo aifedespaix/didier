@@ -8,6 +8,7 @@ import ExplosionVisual from "@/components/3d/effects/Explosion";
 import type { PeerId, P2PMessage, RemotePlayerState } from "@/types/p2p";
 import { useObstacles } from "@/stores/obstacles";
 import { OBSTACLE_ITEMS } from "@/components/3d/props/obstacle-config";
+import { WORLD } from "@/config/world";
 
 export type SpawnProjectileInput = {
   id?: string;
@@ -42,6 +43,22 @@ export const ProjectileManager = forwardRef<ProjectileManagerRef, {
   const bolts = useRef<Map<string, { node: Group; p: Projectile }>>(new Map());
   const tmpV = useMemo(() => new Vector3(), []);
   const [version, setVersion] = useState(0); // trigger React re-render on spawn/despawn
+  // Precompute static wall AABBs matching Ground walls
+  const walls = useMemo(() => {
+    const t = WORLD.wallThickness;
+    const h = WORLD.wallHeight;
+    const half = { x: WORLD.sizeX / 2, y: h / 2, z: WORLD.sizeZ / 2 };
+    return [
+      // North wall (z = +half.z)
+      { center: { x: 0, y: half.y, z: half.z }, half: { x: half.x, y: half.y, z: t / 2 } },
+      // South wall (z = -half.z)
+      { center: { x: 0, y: half.y, z: -half.z }, half: { x: half.x, y: half.y, z: t / 2 } },
+      // East wall (x = +half.x)
+      { center: { x: half.x, y: half.y, z: 0 }, half: { x: t / 2, y: half.y, z: half.z } },
+      // West wall (x = -half.x)
+      { center: { x: -half.x, y: half.y, z: 0 }, half: { x: t / 2, y: half.y, z: half.z } },
+    ];
+  }, []);
 
   function spawn(proj: SpawnProjectileInput) {
     const id = proj.id ?? `proj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -150,6 +167,23 @@ export const ProjectileManager = forwardRef<ProjectileManagerRef, {
             // Broadcast authoritative hp to clients
             onNetSend({ t: "ob-hp", id: cfg.id, hp: newHp } as any);
             // Despawn projectile on hit and broadcast
+            explodeAt.push([ent.node.position.x, ent.node.position.y, ent.node.position.z]);
+            toRemove.push(id);
+            onNetSend({ t: "proj-despawn", id, reason: "hit", pos: [ent.node.position.x, ent.node.position.y, ent.node.position.z] } as any);
+            return;
+          }
+        }
+
+        // Check arena walls (treat walls as static AABBs, explode without damage)
+        for (const w of walls) {
+          const sx = ent.node.position.x;
+          const sy = ent.node.position.y;
+          const sz = ent.node.position.z;
+          const cx = Math.max(w.center.x - w.half.x, Math.min(sx, w.center.x + w.half.x));
+          const cy = Math.max(w.center.y - w.half.y, Math.min(sy, w.center.y + w.half.y));
+          const cz = Math.max(w.center.z - w.half.z, Math.min(sz, w.center.z + w.half.z));
+          const dx = sx - cx, dy = sy - cy, dz = sz - cz;
+          if (dx * dx + dy * dy + dz * dz <= hitRadius * hitRadius) {
             explodeAt.push([ent.node.position.x, ent.node.position.y, ent.node.position.z]);
             toRemove.push(id);
             onNetSend({ t: "proj-despawn", id, reason: "hit", pos: [ent.node.position.x, ent.node.position.y, ent.node.position.z] } as any);

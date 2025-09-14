@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import type { AnimStateId } from "@/types/animation";
 import type { MoveTarget } from "@/types/game";
 import { Ground, Obstacles, Player, TargetMarker, CameraController, Minimap, RemotePlayer, ViewPanel, NetworkPanel } from "@/components/3d";
+import { PlayerLightCone } from "@/components/3d/effects/PlayerLightCone";
 import { SpellBar } from "@/components/3d/hud/SpellBar";
 import { HealthBar } from "@/components/3d/hud/HealthBar";
 import { PingHUD } from "@/components/3d/hud/PingHUD";
@@ -34,6 +35,7 @@ export function Game() {
   const animOverrideRef = useRef<AnimStateId | null>(null);
   const [camFollow, setCamFollow] = useState<boolean>(true);
   const [zoomLevel, setZoomLevel] = useState<number>(0);
+  const aimRef = useRef<[number, number, number] | null>(null);
   const { peerId, ready, error, remotes, peers, room, isHost, hostId, peersInfo, reconnectMissing, pingAll, send, onMessage } = useP2PNetwork(
     playerRef as any,
     {
@@ -46,6 +48,23 @@ export function Game() {
         const s = useCharacterUI.getState();
         return { cur: s.hpCurrent, max: s.hpMax };
       },
+      getLightYaw: () => {
+        const b = playerRef.current;
+        if (!b) return null;
+        try {
+          const tr = b.translation();
+          const a = aimRef.current;
+          if (a) {
+            const dx = a[0] - tr.x;
+            const dz = a[2] - tr.z;
+            if (dx * dx + dz * dz > 1e-8) return Math.atan2(dx, dz);
+          }
+          const lv = b.linvel();
+          const v2 = lv.x * lv.x + lv.z * lv.z;
+          if (v2 > 1e-6) return Math.atan2(lv.x, lv.z);
+        } catch {}
+        return null;
+      },
     },
   );
   const projRef = useRef<ProjectileManagerRef | null>(null);
@@ -55,9 +74,11 @@ export function Game() {
   const armedAction = useCastTransient((s) => s.armedAction);
   const [worldReady, setWorldReady] = useState(false);
   const aimPoint = useAim((s) => s.point);
+  useEffect(() => { aimRef.current = aimPoint; }, [aimPoint]);
   const character = useMemo(() => buildDefaultCharacter(), []);
   const dashRange = (character.dashDurationMs / 1000) * character.dashSpeed;
   const fireballSpell = useMemo(() => new FireballSpell(), []);
+  
 
   // Wire custom P2P messages for spells/projectiles
   useEffect(() => {
@@ -92,8 +113,9 @@ export function Game() {
           );
         }}
       >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
+        {/* Darker global lighting to emphasize the player torch */}
+        <ambientLight intensity={0.08} />
+        <directionalLight position={[5, 8, 5]} intensity={0.2} color={0x6f7a88} castShadow />
 
         <Physics gravity={[0, -9.81, 0]} maxCcdSubsteps={2} predictionDistance={0.01}>
           <Ground onRightClick={(x, z) => {
@@ -103,6 +125,8 @@ export function Game() {
             markerTimer.current = window.setTimeout(() => setMarkerTarget(null), 1000);
           }} />
           <Obstacles />
+          {/* Player forward light cone (torch-like) */}
+          <PlayerLightCone playerRef={playerRef} />
           <Player
             target={moveTarget}
             bodyRef={playerRef}
@@ -111,7 +135,15 @@ export function Game() {
             performDashRef={performDashRef as any}
             onCancelMove={() => setMoveTarget(null)}
             onCastMagic={() => {
-              performPrimaryCast(playerRef.current, projRef.current, peerId, send, aimPoint ?? null, fireballSpell);
+              performPrimaryCast(
+                playerRef.current,
+                projRef.current,
+                peerId,
+                send,
+                aimPoint ?? null,
+                fireballSpell,
+                character,
+              );
             }}
           />
           <ProjectileManager
@@ -145,10 +177,23 @@ export function Game() {
           zoomIndex={zoomLevel}
           setZoomIndex={setZoomLevel}
         />
+        {/* No fog-of-war overlay; lighting handled by PlayerLightCone */}
       </Canvas>
 
+      {/* Fog settings removed */}
+
       <SpellCastInputAdapter
-        onPerformCast={() => performPrimaryCast(playerRef.current, projRef.current, peerId, send, aimPoint ?? null, fireballSpell)}
+        onPerformCast={() =>
+          performPrimaryCast(
+            playerRef.current,
+            projRef.current,
+            peerId,
+            send,
+            aimPoint ?? null,
+            fireballSpell,
+            character,
+          )
+        }
         onPerformCastAnim={() => performCastRef.current?.()}
         onPerformDash={() => performDashRef.current?.()}
         onPerformDashAnim={undefined}
@@ -169,7 +214,7 @@ export function Game() {
           if (markerTimer.current) window.clearTimeout(markerTimer.current);
           markerTimer.current = window.setTimeout(() => setMarkerTarget(null), 1000);
         }}
-        width={220}
+        width={160}
       />
       {/* P2P status small badge bottom-left */}
       <NetworkPanel
@@ -205,46 +250,70 @@ function performPrimaryCast(
   peerId: string | null,
   send: (m: any) => void,
   aimPoint: [number, number, number] | null,
-  spell: { getConfig(): { speed: number; range: number; radius: number; damage: number } },
+  spell: { cast: (ctx: any, character: any) => any; getConfig: () => { speed: number; range: number; radius: number; damage: number } },
+  character?: ReturnType<typeof buildDefaultCharacter>,
 ) {
-  if (!body) return;
-  const tr = body.translation();
-  // Direction from aim if available, otherwise from velocity
-  let dirX = 0;
-  let dirZ = 1;
-  if (aimPoint) {
-    const dx = aimPoint[0] - tr.x;
-    const dz = aimPoint[2] - tr.z;
-    const len = Math.hypot(dx, dz);
-    if (len > 1e-4) {
-      dirX = dx / len;
-      dirZ = dz / len;
-    }
-  } else {
-    const lv = body.linvel();
-    const v2 = lv.x * lv.x + lv.z * lv.z;
-    if (v2 > 1e-6) {
-      const l = Math.sqrt(v2);
-      dirX = lv.x / l;
-      dirZ = lv.z / l;
-    }
+  if (!body) {
+    console.warn("performPrimaryCast: missing body; aborting cast");
+    return;
   }
-  // Spawn at half character height so it doesn't fly over walls
-  const HALF_Y = (() => {
-    try {
-      const ch = buildDefaultCharacter();
-      return (ch.skin.fitHeight * ch.skin.scale) / 2;
-    } catch {
-      return 1.0;
-    }
-  })();
-  const origin: [number, number, number] = [tr.x + dirX * 0.8, HALF_Y, tr.z + dirZ * 0.8];
-  const dir: [number, number, number] = [dirX, 0, dirZ];
-  const id = `proj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-  const cfg = spell.getConfig();
-  const fireball = { id, from: peerId ?? null, kind: "fireball" as const, p: origin, d: dir, speed: cfg.speed, range: cfg.range, radius: cfg.radius, damage: cfg.damage };
-  projMgr?.spawn(fireball);
-  send({ t: "spell-cast", ...fireball } as any);
+  if (!spell || typeof (spell as any).cast !== "function") {
+    console.warn("performPrimaryCast: invalid spell provided; aborting cast");
+    return;
+  }
+  const char = character ?? buildDefaultCharacter();
+  const HALF_Y = (char.skin.fitHeight * char.skin.scale) / 2;
+  const ctx = {
+    body,
+    visualQuaternion: null,
+    setAnimOverride: (_st: any, _dur?: number) => {},
+    spawnProjectile: (params: { kind: string; speed: number; range: number; radius: number; damage: number }) => {
+      const tr = body.translation();
+      // Direction from aim if available, otherwise from velocity
+      let dirX = 0;
+      let dirZ = 1;
+      if (aimPoint) {
+        const dx = aimPoint[0] - tr.x;
+        const dz = aimPoint[2] - tr.z;
+        const len = Math.hypot(dx, dz);
+        if (len > 1e-4) {
+          dirX = dx / len;
+          dirZ = dz / len;
+        }
+      } else {
+        const lv = body.linvel();
+        const v2 = lv.x * lv.x + lv.z * lv.z;
+        if (v2 > 1e-6) {
+          const l = Math.sqrt(v2);
+          dirX = lv.x / l;
+          dirZ = lv.z / l;
+        }
+      }
+      const origin: [number, number, number] = [tr.x + dirX * 0.8, HALF_Y, tr.z + dirZ * 0.8];
+      const dir: [number, number, number] = [dirX, 0, dirZ];
+      const id = `proj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+      const proj = { id, from: peerId ?? null, kind: params.kind, p: origin, d: dir, speed: params.speed, range: params.range, radius: params.radius, damage: params.damage };
+      try {
+        if (projMgr && typeof projMgr.spawn === "function") {
+          projMgr.spawn(proj as any);
+        } else {
+          console.warn("performPrimaryCast: projMgr not ready; local spawn skipped");
+        }
+      } catch (e) {
+        console.error("performPrimaryCast: error spawning projectile", e);
+      }
+      try {
+        send({ t: "spell-cast", ...(proj as any) } as any);
+      } catch (e) {
+        console.error("performPrimaryCast: error sending spell-cast message", e);
+      }
+    },
+  };
+  try {
+    (spell as any).cast(ctx, char as any);
+  } catch (e) {
+    console.error("performPrimaryCast: spell.cast threw", e);
+  }
 }
 
 function WorldReadySensor({ playerRef, onReady }: { playerRef: React.MutableRefObject<RigidBodyApi | null>; onReady: () => void }) {

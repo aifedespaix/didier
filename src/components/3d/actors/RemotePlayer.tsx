@@ -1,7 +1,8 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { Group } from "three";
+import type { SpotLight, Object3D } from "three";
 import { Euler, Quaternion, Vector3 } from "three";
 import type { RemotePlayerState } from "@/types/p2p";
 import { CharacterModel } from "@/components/3d/actors/CharacterModel";
@@ -31,6 +32,23 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
   const BASE_HALF_Y = 1.0;
   const RING_SCALE = HALF_Y / BASE_HALF_Y;
   const HEAD_Y = -1 + EFFECTIVE_HEIGHT + 0.08;
+  // Light cone settings (mirror local player)
+  const LIGHT_Y = 1.6;
+  const LIGHT_DISTANCE = 42;
+  const LIGHT_INTENSITY = 4.2;
+  const LIGHT_ANGLE = (48 * Math.PI) / 180;
+  const lightRef = useRef<SpotLight | null>(null);
+  const lightTargetRef = useRef<Object3D | null>(null);
+
+  useEffect(() => {
+    if (lightRef.current && lightTargetRef.current) {
+      lightRef.current.target = lightTargetRef.current as any;
+      try {
+        lightRef.current.shadow.mapSize.set(1024, 1024);
+        lightRef.current.shadow.bias = -0.0005;
+      } catch {}
+    }
+  }, []);
 
   useFrame((_s, dt) => {
     // Update targets from latest state
@@ -57,10 +75,33 @@ export function RemotePlayer({ state }: { state: RemotePlayerState }) {
       visual.current.position.copy(pos.current);
       visual.current.quaternion.copy(rot.current);
     }
+
+    // Update remote light cone position and direction
+    if (lightRef.current && lightTargetRef.current) {
+      lightRef.current.position.set(pos.current.x, LIGHT_Y, pos.current.z);
+      const yaw = typeof state.ly === "number" ? state.ly : state.y;
+      const dirX = Math.sin(yaw);
+      const dirZ = Math.cos(yaw);
+      lightTargetRef.current.position.set(pos.current.x + dirX, LIGHT_Y, pos.current.z + dirZ);
+      lightTargetRef.current.updateMatrixWorld();
+      lightRef.current.target.updateMatrixWorld();
+    }
   });
 
   return (
     <group ref={visual}>
+      {/* Remote light cone to match peer's aim/direction */}
+      <spotLight
+        ref={lightRef as any}
+        color="#ffdca8"
+        intensity={LIGHT_INTENSITY}
+        distance={LIGHT_DISTANCE}
+        angle={LIGHT_ANGLE}
+        penumbra={0.5}
+        decay={1.0}
+        castShadow
+      />
+      <object3D ref={lightTargetRef as any} />
       {/* UX: red translucent ground ring (annulus) under remote players */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -(HALF_Y + 0.02), 0]} receiveShadow>
         <ringGeometry args={[0.55 * RING_SCALE, 0.85 * RING_SCALE, 32]} />

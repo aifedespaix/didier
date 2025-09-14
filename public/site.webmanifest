@@ -1,0 +1,11 @@
+{
+  "name": "Didier",
+  "short_name": "Didier",
+  "description": "Application 3D interactive avec Next.js, React Three Fiber et Rapier.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0ea5e9",
+  "lang": "fr"
+}
+

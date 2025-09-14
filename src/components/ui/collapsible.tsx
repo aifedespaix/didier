@@ -43,20 +43,31 @@ export function CollapsibleTrigger({
   children,
   className,
   style,
+  asChild,
 }: {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  asChild?: boolean;
 }) {
   const ctx = useContext(Ctx);
   if (!ctx) return null;
+  const onClick = () => ctx.setOpen(!ctx.open);
+  if (asChild && React.isValidElement(children)) {
+    const prev = (children as any).props?.onClick as ((e: any) => void) | undefined;
+    const merged = (e: any) => {
+      try { prev?.(e); } catch {}
+      if (!e?.defaultPrevented) onClick();
+    };
+    return React.cloneElement(children as any, {
+      onClick: merged,
+      className: [children.props?.className, className].filter(Boolean).join(" "),
+      style: { ...(children.props?.style ?? {}), ...(style ?? {}) },
+      role: (children as any).props?.role ?? "button",
+    });
+  }
   return (
-    <button
-      type="button"
-      onClick={() => ctx.setOpen(!ctx.open)}
-      className={className}
-      style={style}
-    >
+    <button type="button" onClick={onClick} className={className} style={style}>
       {children}
     </button>
   );

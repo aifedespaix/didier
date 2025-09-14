@@ -8,6 +8,7 @@ export type P2PStateMessage = {
   t: "state";
   p: Vector3Tuple; // position [x,y,z]
   y: number; // yaw in radians
+  ly?: number; // optional light yaw in radians (aim/torch direction)
   a?: AnimStateId | null; // optional override anim state (e.g., dash)
   h?: [number, number]; // optional health [current, max]
 };
@@ -85,6 +86,7 @@ export type RemotePlayerState = {
   id: PeerId;
   p: Vector3Tuple;
   y: number;
+  ly?: number | null;
   a?: AnimStateId | null;
   h?: [number, number] | null;
   last: number; // ms timestamp

@@ -75,9 +75,12 @@ export function CharacterModel({ speed, getSpeed, overrideState = null, clipHint
   });
 
   useEffect(() => {
-    // Enable shadows on meshes
+    // Configure shadows: avoid self-shadowing artifacts on skinned meshes
     scene.traverse((obj: any) => {
-      if (obj.isMesh) {
+      if (obj.isSkinnedMesh) {
+        obj.castShadow = false;
+        obj.receiveShadow = false;
+      } else if (obj.isMesh) {
         obj.castShadow = true;
         obj.receiveShadow = true;
       }
