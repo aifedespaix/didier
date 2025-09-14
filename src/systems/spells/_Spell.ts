@@ -11,7 +11,7 @@ export interface SpellContext {
 	setAnimOverride: (state: AnimStateId | null, durationMs?: number) => void;
 	nowMs?: number;
 	spawnProjectile?: (params: {
-		kind: "magic-bolt" | "fireball" | "bullet" | string;
+		kind: "magic-bolt" | "fireball" | string;
 		speed: number;
 		range: number;
 		radius: number;

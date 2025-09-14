@@ -244,7 +244,6 @@ function ShortcutsModal({
 		{ label: "Move Right", action: "game.move.right" },
 		{ label: "Jump", action: "game.jump" },
 		{ label: "Sprint", action: "game.sprint" },
-		{ label: "Spell #1", action: "game.spell.1" },
 		{ label: "Fire", action: "game.fire" },
 		{ label: "Dash", action: "game.dash" },
 		{ label: "Follow Camera", action: "camera.follow.toggle" },
@@ -407,21 +406,16 @@ function applyLayout(layout: "qwerty" | "azerty") {
 	if (layout === "qwerty") {
 		gameplay["Key:KeyW"] = "game.move.forward";
 		gameplay["Key:KeyS"] = "game.move.back";
-		gameplay["Key:ArrowLeft"] = "game.move.left";
+		gameplay["Key:KeyA"] = "game.move.left";
 		gameplay["Key:KeyD"] = "game.move.right";
-		gameplay["Key:ArrowRight"] = "game.move.right";
 	} else {
 		gameplay["Key:KeyZ"] = "game.move.forward";
 		gameplay["Key:KeyS"] = "game.move.back";
-		gameplay["Key:ArrowLeft"] = "game.move.left";
+		gameplay["Key:KeyQ"] = "game.move.left";
 		gameplay["Key:KeyD"] = "game.move.right";
-		gameplay["Key:ArrowRight"] = "game.move.right";
 	}
 	// Actions (example: keep dash on E for both)
 	gameplay["Key:KeyE"] = "game.dash";
-	// Primary spell on A/Q depending on layout
-	if (layout === "qwerty") gameplay["Key:KeyA"] = "game.spell.1";
-	else gameplay["Key:KeyQ"] = "game.spell.1";
 	saveBindings({ gameplay } as any);
 	toast.success(`Applied ${layout.toUpperCase()} layout`);
 	setTimeout(() => window.location.reload(), 250);

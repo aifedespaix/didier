@@ -1,4 +1,5 @@
 "use client";
+import { useFrame } from "@react-three/fiber";
 import {
 	forwardRef,
 	useImperativeHandle,
@@ -7,21 +8,19 @@ import {
 	useState,
 } from "react";
 import { Group, Vector3 } from "three";
-import { useFrame } from "@react-three/fiber";
-import MagicBoltVisual from "@/components/3d/effects/MagicBolt";
-import FireballVisual from "@/components/3d/effects/Fireball";
-import BulletVisual from "@/components/3d/effects/Bullet";
 import ExplosionVisual from "@/components/3d/effects/Explosion";
-import type { PeerId, P2PMessage, RemotePlayerState } from "@/types/p2p";
-import { useCharacterUI } from "@/stores/character-ui";
-import { useObstacles } from "@/stores/obstacles";
+import FireballVisual from "@/components/3d/effects/Fireball";
+import MagicBoltVisual from "@/components/3d/effects/MagicBolt";
 import { OBSTACLE_ITEMS } from "@/components/3d/props/obstacle-config";
 import { WORLD } from "@/config/world";
+import { useCharacterUI } from "@/stores/character-ui";
+import { useObstacles } from "@/stores/obstacles";
+import type { P2PMessage, PeerId, RemotePlayerState } from "@/types/p2p";
 
 export type SpawnProjectileInput = {
 	id?: string;
 	from: PeerId | null;
-	kind: "magic-bolt" | "fireball" | "bullet" | string;
+	kind: "magic-bolt" | "fireball" | string;
 	p: [number, number, number];
 	d: [number, number, number];
 	speed: number;
@@ -133,6 +132,7 @@ export const ProjectileManager = forwardRef<
 		setVersion((v) => v + 1);
 	}
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: spawn/despawn refs are stable within this component
 	useImperativeHandle(ref, () => ({ spawn, despawn }), []);
 
 	// Simple explosion registry managed by this component
@@ -393,7 +393,6 @@ export const ProjectileManager = forwardRef<
 						<MagicBoltVisual radius={p.radius} />
 					) : null}
 					{p.kind === "fireball" ? <FireballVisual radius={p.radius} /> : null}
-					{p.kind === "bullet" ? <BulletVisual radius={p.radius} /> : null}
 				</primitive>
 			))}
 			{explosions.current.map((e) => (

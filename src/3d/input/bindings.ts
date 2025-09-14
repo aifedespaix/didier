@@ -38,13 +38,11 @@ export function buildDefaultBindings(layout: KeyboardLayout): ContextBindings {
 		gameplay["Key:KeyS"] = "game.move.back";
 		gameplay["Key:KeyQ"] = "game.move.left";
 		gameplay["Key:KeyD"] = "game.move.right";
-		gameplay["Key:KeyA"] = "game.spell.1";
 	} else {
 		gameplay["Key:KeyW"] = "game.move.forward";
 		gameplay["Key:KeyS"] = "game.move.back";
 		gameplay["Key:KeyA"] = "game.move.left";
 		gameplay["Key:KeyD"] = "game.move.right";
-		gameplay["Key:KeyQ"] = "game.spell.1";
 	}
 
 	const menu: BindingProfile = {
