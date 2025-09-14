@@ -44,7 +44,7 @@ export type P2PSpellCastMessage = {
 	t: "spell-cast";
 	id: string; // projectile id
 	from: PeerId | null;
-	kind: "magic-bolt" | "fireball" | "bullet" | string;
+	kind: "magic-bolt" | "fireball" | string;
 	p: Vector3Tuple; // origin
 	d: Vector3Tuple; // normalized direction
 	speed: number;

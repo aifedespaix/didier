@@ -16,7 +16,6 @@ import {
 	TargetMarker,
 	ViewPanel,
 } from "~/components/3d";
-import { AimVisualRoot } from "~/components/3d/aim/AimVisuals";
 import { PlayerLightCone } from "~/components/3d/effects/PlayerLightCone";
 import { HealthBar } from "~/components/3d/hud/HealthBar";
 import { MenuManager } from "~/components/3d/hud/MenuModals";
@@ -28,15 +27,12 @@ import ProjectileManager, {
 } from "~/components/3d/world/ProjectileManager";
 import { LoaderOverlay } from "~/components/ui/loader-overlay";
 import { useAim } from "~/stores/aim";
-import { useCastTransient } from "~/stores/cast";
 import { useCharacterUI } from "~/stores/character-ui";
 import { useObstacles } from "~/stores/obstacles";
 import type { Character } from "~/systems/character/Character";
 import { buildDefaultCharacter } from "~/systems/character/defaults";
 import { useP2PNetwork } from "~/systems/p2p/peer.client";
-import { BulletSpell } from "~/systems/spells/BulletSpell";
-import { FireballSpell } from "~/systems/spells/FireballSpell";
-import SpellCastInputAdapter from "~/systems/spells/SpellCastInputAdapter";
+import { MiniFireballSpell } from "~/systems/spells/MiniFireballSpell";
 import type { SpellContext, SpellResult } from "~/systems/spells/types";
 import type { AnimStateId } from "~/types/animation";
 import type { MoveTarget } from "~/types/game";
@@ -106,23 +102,17 @@ export function Game() {
 		},
 	});
 	const projRef = useRef<ProjectileManagerRef | null>(null);
-	const performCastRef = useRef<(() => void) | null>(null);
 	const performDashRef = useRef<(() => void) | null>(null);
-	const previewVisible = useCastTransient((s) => s.previewVisible);
-	const armedAction = useCastTransient((s) => s.armedAction);
 	const [worldReady, setWorldReady] = useState(false);
 	const aimPoint = useAim((s) => s.point);
 	useEffect(() => {
 		aimRef.current = aimPoint;
 	}, [aimPoint]);
 	const character = useMemo(() => buildDefaultCharacter(), []);
-	const dashRange = (character.dashDurationMs / 1000) * character.dashSpeed;
-	const fireballSpell = useMemo(() => new FireballSpell(), []);
-	const bulletSpell = useMemo(() => new BulletSpell(), []);
+	const miniFireballSpell = useMemo(() => new MiniFireballSpell(), []);
 
 	useActionEvents("game.fire", (ev) => {
 		if (ev.type !== "digital" || ev.phase !== "pressed") return;
-		if (useCastTransient.getState().phase !== "idle") return;
 		firePulseRef.current = true;
 		performPrimaryCast(
 			playerRef.current,
@@ -130,9 +120,14 @@ export function Game() {
 			peerId,
 			send,
 			aimPoint ?? null,
-			bulletSpell,
+			miniFireballSpell,
 			character,
 		);
+	});
+
+	useActionEvents("game.dash", (ev) => {
+		if (ev.type !== "digital" || ev.phase !== "pressed") return;
+		performDashRef.current?.();
 	});
 
 	useActionEvents("game.toggleTorch", (ev) => {
@@ -210,20 +205,8 @@ export function Game() {
 						target={moveTarget}
 						bodyRef={playerRef}
 						animOverrideRef={animOverrideRef}
-						performCastRef={performCastRef}
 						performDashRef={performDashRef}
 						onCancelMove={() => setMoveTarget(null)}
-						onCastMagic={() => {
-							performPrimaryCast(
-								playerRef.current,
-								projRef.current,
-								peerId,
-								send,
-								aimPoint ?? null,
-								fireballSpell,
-								character,
-							);
-						}}
 					/>
 					<ProjectileManager
 						// biome-ignore lint/suspicious/noExplicitAny: forwardRef type mismatch
@@ -246,14 +229,6 @@ export function Game() {
 				</Physics>
 
 				<TargetMarker target={markerTarget} />
-				<AimVisualRoot
-					playerRef={playerRef}
-					visible={previewVisible}
-					range={armedAction === "game.dash" ? dashRange : 20}
-					type="arrow"
-					color={armedAction === "game.dash" ? "#22d3ee" : "#22d3ee"}
-				/>
-
 				<CameraController
 					targetRef={playerRef}
 					follow={camFollow}
@@ -263,23 +238,6 @@ export function Game() {
 			</Canvas>
 
 			{/* Fog settings removed */}
-
-			<SpellCastInputAdapter
-				onPerformCast={() =>
-					performPrimaryCast(
-						playerRef.current,
-						projRef.current,
-						peerId,
-						send,
-						aimPoint ?? null,
-						fireballSpell,
-						character,
-					)
-				}
-				onPerformCastAnim={() => performCastRef.current?.()}
-				onPerformDash={() => performDashRef.current?.()}
-				onPerformDashAnim={undefined}
-			/>
 
 			<ViewPanel camFollow={camFollow} />
 			<SpellBar />

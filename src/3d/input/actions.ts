@@ -19,7 +19,6 @@ export type ActionId =
 	| "game.sprint"
 	// Combat / abilities
 	| "game.fire" // primary fire (LMB)
-	| "game.spell.1" // primary spell (A/Q)
 	| "game.primary" // legacy alias (kept for compatibility)
 	| "game.secondary" // legacy alias (was RMB)
 	| "game.dash"
@@ -123,13 +122,6 @@ export const ACTIONS: Record<ActionId, ActionDef> = {
 	// Primary fire (LMB)
 	"game.fire": {
 		id: "game.fire",
-		kind: "digital",
-		domain: "game",
-		contexts: ["gameplay"],
-	},
-	// Primary spell (A/Q). Use this for Spell #1.
-	"game.spell.1": {
-		id: "game.spell.1",
 		kind: "digital",
 		domain: "game",
 		contexts: ["gameplay"],
