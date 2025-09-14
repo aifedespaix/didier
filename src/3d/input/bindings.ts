@@ -22,7 +22,7 @@ export function buildDefaultBindings(layout: KeyboardLayout): ContextBindings {
 		"Key:Space": "game.jump",
 		"Key:ShiftLeft": "game.sprint",
 		"Key:ShiftRight": "game.sprint",
-		"Mouse:Left": "game.attack",
+		"Mouse:Left": "game.fire",
 		// Do not bind RMB to a spell; RMB is used for move orders in-scene
 		"Key:KeyE": "game.dash",
 		// Pause/Menu
