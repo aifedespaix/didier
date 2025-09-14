@@ -40,7 +40,11 @@ import SpellCastInputAdapter from "~/systems/spells/SpellCastInputAdapter";
 import type { SpellContext, SpellResult } from "~/systems/spells/types";
 import type { AnimStateId } from "~/types/animation";
 import type { MoveTarget } from "~/types/game";
-import type { P2PMessage, P2PSpellCastMessage } from "~/types/p2p";
+import type {
+	P2PMessage,
+	P2PShotMessage,
+	P2PSpellCastMessage,
+} from "~/types/p2p";
 
 export function Game() {
 	// Cible de déplacement persistante vs. marqueur visuel (1s)
@@ -52,6 +56,7 @@ export function Game() {
 	const [camFollow, setCamFollow] = useState<boolean>(true);
 	const [torchEnabled, setTorchEnabled] = useState(false);
 	const aimRef = useRef<[number, number, number] | null>(null);
+	const firePulseRef = useRef(false);
 	const {
 		peerId,
 		ready,
@@ -77,7 +82,7 @@ export function Game() {
 			const s = useCharacterUI.getState();
 			return { cur: s.hpCurrent, max: s.hpMax };
 		},
-		getLightYaw: () => {
+		getAimYaw: () => {
 			const b = playerRef.current;
 			if (!b) return null;
 			try {
@@ -93,6 +98,11 @@ export function Game() {
 				if (v2 > 1e-6) return Math.atan2(lv.x, lv.z);
 			} catch {}
 			return null;
+		},
+		getInstantFire: () => {
+			const f = firePulseRef.current;
+			firePulseRef.current = false;
+			return f;
 		},
 	});
 	const projRef = useRef<ProjectileManagerRef | null>(null);
@@ -113,6 +123,7 @@ export function Game() {
 	useActionEvents("game.fire", (ev) => {
 		if (ev.type !== "digital" || ev.phase !== "pressed") return;
 		if (useCastTransient.getState().phase !== "idle") return;
+		firePulseRef.current = true;
 		performPrimaryCast(
 			playerRef.current,
 			projRef.current,
@@ -151,6 +162,11 @@ export function Game() {
 					const st = useCharacterUI.getState();
 					const next = Math.max(0, st.hpCurrent - Math.max(0, msg.amount));
 					st.setHp(next, st.hpMax);
+				}
+			} else if (msg.t === "kill") {
+				if (peerId && msg.to === peerId) {
+					const st = useCharacterUI.getState();
+					st.setHp(0, st.hpMax);
 				}
 			} else if (msg.t === "ob-hp") {
 				// Apply authoritative obstacle hp update
@@ -408,11 +424,19 @@ function performPrimaryCast(
 				console.error("performPrimaryCast: error spawning projectile", e);
 			}
 			try {
+				const shot: P2PShotMessage = {
+					t: "shot",
+					id,
+					from: peerId ?? null,
+					p: origin,
+					d: dir,
+				};
+				send(shot);
 				const msg: P2PSpellCastMessage = { t: "spell-cast", ...proj };
 				send(msg);
 			} catch (e) {
 				console.error(
-					"performPrimaryCast: error sending spell-cast message",
+					"performPrimaryCast: error sending shot/spell message",
 					e,
 				);
 			}
