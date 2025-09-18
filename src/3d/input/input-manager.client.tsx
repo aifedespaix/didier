@@ -58,16 +58,16 @@ export function InputProvider({
 	}, []);
 	const bindings = useMemo(() => {
 		const defaults = buildDefaultBindings(layout);
-		const merged = mergeBindings(
-			defaults,
-			mergeBindings(persisted ?? {}, overrides),
-		);
+		const withPersisted = mergeBindings(defaults, persisted);
+		const merged = mergeBindings(withPersisted, overrides);
 		// Enforce essential bindings regardless of user overrides
 		const b = {
 			...merged,
 			gameplay: { ...(merged.gameplay || {}) },
 		} as ContextBindings;
 		b.gameplay["Key:Escape"] = "ui.toggleMenu" as ActionId;
+		// Ensure primary fire always remains on left mouse button in gameplay context
+		b.gameplay["Mouse:Left"] = "game.fire" as ActionId;
 		return b;
 	}, [persisted, overrides, layout]);
 

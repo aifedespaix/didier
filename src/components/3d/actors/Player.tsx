@@ -1,7 +1,7 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import type { RigidBodyApi } from "@react-three/rapier";
 import { CapsuleCollider, RigidBody, useRapier } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Group } from "three";
 import { Quaternion, Vector3 } from "three";
@@ -16,8 +16,12 @@ import { DashSpell } from "@/systems/spells/DashSpell";
 import type { AnimStateId } from "@/types/animation";
 import type { MoveTarget } from "@/types/game";
 
+const STEER_SCAN_DEGREES = [20, -20, 35, -35, 50, -50, 65, -65];
+const STEER_WIDE_DEGREES = [80, -80, 100, -100, 120, -120];
+const ANTI_STUCK_DIRECTIONS = 16;
+
 export function Player({
-	target,
+	target = null,
 	bodyRef,
 	animOverrideRef,
 	onCancelMove,
@@ -25,8 +29,8 @@ export function Player({
 	performCastRef,
 	performDashRef,
 }: {
-	target: MoveTarget;
-	bodyRef?: React.MutableRefObject<RigidBodyApi | null>;
+	target?: MoveTarget;
+	bodyRef?: React.MutableRefObject<RapierRigidBody | null>;
 	animOverrideRef?: React.MutableRefObject<AnimStateId | null>;
 	onCancelMove?: () => void;
 	onCastMagic?: () => void;
@@ -39,7 +43,7 @@ export function Player({
 	 */
 	performDashRef?: React.MutableRefObject<(() => void) | null>;
 }) {
-	const internalBodyRef = useRef<RigidBodyApi | null>(null);
+	const internalBodyRef = useRef<RapierRigidBody | null>(null);
 	const body = bodyRef ?? internalBodyRef;
 	const visual = useRef<Group | null>(null);
 	// Character configuration (speed/skin/dash)
@@ -55,6 +59,9 @@ export function Player({
 	const dashUntil = useRef<number>(0);
 	const dashDir = useRef<{ x: number; z: number }>({ x: 0, z: 1 });
 	const dashSpell = useMemo(() => new DashSpell(), []);
+	const upAxis = useMemo(() => new Vector3(0, 1, 0), []);
+	const aimDirection = useMemo(() => new Vector3(), []);
+	const tmpQuat = useMemo(() => new Quaternion(), []);
 	// Fenêtre "chant incantation" (empêche le déplacement tant qu'un sort non-mobilité est en cours)
 	const castingUntil = useRef<number>(0);
 	// Anti-stuck: timers pour détecter l'immobilité et limiter les nudges
@@ -105,11 +112,8 @@ export function Player({
 				const len = Math.hypot(dx, dz);
 				if (len > 1e-4) {
 					const yaw = Math.atan2(dx / len, dz / len);
-					const targetQ = new Quaternion().setFromAxisAngle(
-						new Vector3(0, 1, 0),
-						yaw,
-					);
-					visual.current.quaternion.copy(targetQ);
+					tmpQuat.setFromAxisAngle(upAxis, yaw);
+					visual.current.quaternion.copy(tmpQuat);
 				}
 			}
 			const res = dashSpell.cast(
@@ -163,11 +167,8 @@ export function Player({
 				const len = Math.hypot(dx, dz);
 				if (len > 1e-4) {
 					const yaw = Math.atan2(dx / len, dz / len);
-					const targetQ = new Quaternion().setFromAxisAngle(
-						new Vector3(0, 1, 0),
-						yaw,
-					);
-					visual.current.quaternion.copy(targetQ);
+					tmpQuat.setFromAxisAngle(upAxis, yaw);
+					visual.current.quaternion.copy(tmpQuat);
 				}
 			}
 			castingUntil.current = performance.now() + 600;
@@ -303,22 +304,20 @@ export function Player({
 						{ x: nx, y: 0, z: nz },
 					);
 					const hit = world.castRay(ray, maxLook, true);
-					const needsAvoid = !!hit && hit.toi < maxLook * 0.9;
+					const needsAvoid = !!hit && hit.timeOfImpact < maxLook * 0.9;
 					if (needsAvoid) {
-						const deg = [20, -20, 35, -35, 50, -50, 65, -65];
 						let found = false;
-						for (let i = 0; i < deg.length; i++) {
-							const a = (deg[i] * Math.PI) / 180;
-							const rx = nx * Math.cos(a) - nz * Math.sin(a);
-							const rz = nx * Math.sin(a) + nz * Math.cos(a);
+						for (let i = 0; i < STEER_SCAN_DEGREES.length; i++) {
+							const a = (STEER_SCAN_DEGREES[i] * Math.PI) / 180;
+							aimDirection.set(nx, 0, nz).applyAxisAngle(upAxis, a);
 							const rRay = new rapier.Ray(
 								{ x: t.x, y: originY, z: t.z },
-								{ x: rx, y: 0, z: rz },
+								{ x: aimDirection.x, y: 0, z: aimDirection.z },
 							);
 							const rHit = world.castRay(rRay, maxLook, true);
 							if (!rHit) {
-								dirX = rx;
-								dirZ = rz;
+								dirX = aimDirection.x;
+								dirZ = aimDirection.z;
 								found = true;
 								break;
 							}
@@ -327,21 +326,19 @@ export function Player({
 							let bestRx = nx,
 								bestRz = nz,
 								bestToi = 0;
-							const wide = [80, -80, 100, -100, 120, -120];
-							for (let i = 0; i < wide.length; i++) {
-								const a = (wide[i] * Math.PI) / 180;
-								const rx = nx * Math.cos(a) - nz * Math.sin(a);
-								const rz = nx * Math.sin(a) + nz * Math.cos(a);
+							for (let i = 0; i < STEER_WIDE_DEGREES.length; i++) {
+								const a = (STEER_WIDE_DEGREES[i] * Math.PI) / 180;
+								aimDirection.set(nx, 0, nz).applyAxisAngle(upAxis, a);
 								const rRay = new rapier.Ray(
 									{ x: t.x, y: originY, z: t.z },
-									{ x: rx, y: 0, z: rz },
+									{ x: aimDirection.x, y: 0, z: aimDirection.z },
 								);
 								const rHit = world.castRay(rRay, maxLook, true);
-								const toi = rHit ? rHit.toi : maxLook;
+								const toi = rHit ? rHit.timeOfImpact : maxLook;
 								if (toi > bestToi) {
 									bestToi = toi;
-									bestRx = rx;
-									bestRz = rz;
+									bestRx = aimDirection.x;
+									bestRz = aimDirection.z;
 								}
 							}
 							dirX = bestRx;
@@ -372,13 +369,10 @@ export function Player({
 				targetYaw = Math.atan2(lv.x, lv.z);
 			}
 			if (targetYaw !== null) {
-				const targetQ = new Quaternion().setFromAxisAngle(
-					new Vector3(0, 1, 0),
-					targetYaw,
-				);
+				tmpQuat.setFromAxisAngle(upAxis, targetYaw);
 				const rotSmoothing = 12;
 				const alpha = 1 - Math.exp(-rotSmoothing * dt);
-				visual.current.quaternion.slerp(targetQ, alpha);
+				visual.current.quaternion.slerp(tmpQuat, alpha);
 			}
 		}
 
@@ -395,16 +389,16 @@ export function Player({
 				bestDirZ = 0,
 				bestToi = -1;
 			// Scanner 16 directions autour pour trouver la plus dégagée
-			for (let i = 0; i < 16; i++) {
-				const a = (i / 16) * Math.PI * 2;
-				const rx = Math.sin(a);
-				const rz = Math.cos(a);
-				const ray = new rapier.Ray(
-					{ x: t.x, y: originY, z: t.z },
-					{ x: rx, y: 0, z: rz },
+		for (let i = 0; i < ANTI_STUCK_DIRECTIONS; i++) {
+			const a = (i / ANTI_STUCK_DIRECTIONS) * Math.PI * 2;
+			const rx = Math.sin(a);
+			const rz = Math.cos(a);
+			const ray = new rapier.Ray(
+				{ x: t.x, y: originY, z: t.z },
+				{ x: rx, y: 0, z: rz },
 				);
 				const hit = world.castRay(ray, probe, true);
-				const toi = hit ? hit.toi : probe; // plus grand = plus libre
+				const toi = hit ? hit.timeOfImpact : probe; // plus grand = plus libre
 				if (toi > bestToi) {
 					bestToi = toi;
 					bestDirX = rx;

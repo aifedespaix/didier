@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import type { RigidBodyApi } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { useAim } from "@/stores/aim";
 
 type Props = {
-  playerRef: React.MutableRefObject<RigidBodyApi | null>;
+  playerRef: React.MutableRefObject<RapierRigidBody | null>;
   height?: number; // light origin height above ground
   distance?: number; // meters
   angleDeg?: number; // cone aperture

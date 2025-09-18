@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { Color, ShaderMaterial, Vector3 } from "three";
 import { useFrame } from "@react-three/fiber";
 
@@ -31,7 +31,7 @@ const frag = /* glsl */ `
   }
 `;
 
-export function MagicBoltVisual({ color = "#7c3aed", radius = 0.35 }: { color?: string; radius?: number }) {
+function MagicBoltVisualInner({ color = "#7c3aed", radius = 0.35 }: { color?: string; radius?: number }) {
   const mat = useRef<ShaderMaterial | null>(null);
   const uColor = useMemo(() => new Color(color), [color]);
   useFrame(({ clock }) => {
@@ -50,8 +50,7 @@ export function MagicBoltVisual({ color = "#7c3aed", radius = 0.35 }: { color?: 
     <group>
       <mesh castShadow>
         <sphereGeometry args={[radius, 24, 24]} />
-        {/* @ts-expect-error three types */}
-        <primitive ref={mat as any} object={material} attach="material" />
+		<primitive ref={mat as any} object={material} attach="material" />
       </mesh>
       {/* Soft point light traveling with bolt */}
       <pointLight color={color} intensity={2.2} distance={6} decay={2} />
@@ -59,5 +58,6 @@ export function MagicBoltVisual({ color = "#7c3aed", radius = 0.35 }: { color?: 
   );
 }
 
-export default MagicBoltVisual;
+export const MagicBoltVisual = memo(MagicBoltVisualInner);
 
+export default MagicBoltVisual;

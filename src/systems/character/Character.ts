@@ -1,5 +1,5 @@
 import type { CharacterProps, ForwardDir } from "@/systems/character/types";
-import type { RigidBodyApi } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
 import { Quaternion, Vector3 } from "three";
 import { Health } from "@/systems/character/stats";
 import { LevelState } from "@/systems/character/level";
@@ -29,7 +29,7 @@ export class Character {
    * Compute forward direction on XZ from a visual quaternion, with a fallback
    * to current linear velocity if quaternion is missing.
    */
-  getForwardXZ(q: Quaternion | null | undefined, body: RigidBodyApi | null): ForwardDir {
+  getForwardXZ(q: Quaternion | null | undefined, body: RapierRigidBody | null): ForwardDir {
     if (q) {
       const v = new Vector3(0, 0, 1).applyQuaternion(q);
       const len = Math.hypot(v.x, v.z) || 1;
@@ -44,7 +44,7 @@ export class Character {
   /**
    * Set the body velocity to a dash along the forward direction.
    */
-  applyDashVelocity(body: RigidBodyApi, q: Quaternion | null | undefined) {
+  applyDashVelocity(body: RapierRigidBody, q: Quaternion | null | undefined) {
     const f = this.getForwardXZ(q, body);
     const cur = body.linvel();
     body.setLinvel({ x: f.x * this.dashSpeed, y: cur.y, z: f.z * this.dashSpeed }, true);

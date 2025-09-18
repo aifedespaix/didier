@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useActionEvents, useInputRuntime } from "@/3d/input/hooks";
 import { DEFAULT_BINDINGS } from "@/3d/input/bindings";
+import { detectKeyboardLayout } from "@/3d/input/keyboard-layout";
 import { loadBindings, saveBindings } from "@/3d/input/persistence/storage";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
@@ -378,6 +379,16 @@ function LayoutRow() {
 }
 
 function getLayoutFromBindings(): "qwerty" | "azerty" {
+	if (typeof window !== "undefined") {
+		try {
+			const stored = window.localStorage.getItem("didier.keyboardLayout");
+			if (stored === "azerty" || stored === "qwerty") {
+				return stored;
+			}
+		} catch {
+			// ignore storage access issues
+		}
+	}
 	const persisted = loadBindings();
 	const map = {
 		...(DEFAULT_BINDINGS.gameplay || {}),
@@ -386,8 +397,8 @@ function getLayoutFromBindings(): "qwerty" | "azerty" {
 	const forwardKey =
 		Object.entries(map).find(([, act]) => act === "game.move.forward")?.[0] ??
 		"";
-	if (forwardKey.includes("KeyZ")) return "azerty";
-	return "qwerty";
+	if (forwardKey.includes("KeyZ") || forwardKey.includes("KeyQ")) return "azerty";
+	return detectKeyboardLayout();
 }
 
 function applyLayout(layout: "qwerty" | "azerty") {
@@ -402,21 +413,21 @@ function applyLayout(layout: "qwerty" | "azerty") {
 	gameplay["Mouse:WheelDown"] = "camera.zoom.out";
 	gameplay["Key:KeyL"] = "camera.follow.toggle";
 	gameplay["Key:Escape"] = "ui.toggleMenu";
-	// Movement
-	if (layout === "qwerty") {
-		gameplay["Key:KeyW"] = "game.move.forward";
-		gameplay["Key:KeyS"] = "game.move.back";
-		gameplay["Key:KeyA"] = "game.move.left";
-		gameplay["Key:KeyD"] = "game.move.right";
-	} else {
-		gameplay["Key:KeyZ"] = "game.move.forward";
-		gameplay["Key:KeyS"] = "game.move.back";
-		gameplay["Key:KeyQ"] = "game.move.left";
-		gameplay["Key:KeyD"] = "game.move.right";
-	}
+	// Movement -- KeyboardEvent.code is layout-independent, so AZERTY ZQSD maps to these codes.
+	gameplay["Key:KeyW"] = "game.move.forward";
+	gameplay["Key:KeyS"] = "game.move.back";
+	gameplay["Key:KeyA"] = "game.move.left";
+	gameplay["Key:KeyD"] = "game.move.right";
 	// Actions (example: keep dash on E for both)
 	gameplay["Key:KeyE"] = "game.dash";
 	saveBindings({ gameplay } as any);
+	if (typeof window !== "undefined") {
+		try {
+			window.localStorage.setItem("didier.keyboardLayout", layout);
+		} catch {
+			// ignore persistence issues
+		}
+	}
 	toast.success(`Applied ${layout.toUpperCase()} layout`);
 	setTimeout(() => window.location.reload(), 250);
 }

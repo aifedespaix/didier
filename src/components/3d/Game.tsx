@@ -1,7 +1,7 @@
 ﻿"use client";
 import { Canvas, useFrame } from "@react-three/fiber";
-import type { RigidBodyApi } from "@react-three/rapier";
 import { Physics, useRapier } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Color } from "three";
 import { useActionEvents } from "~/3d/input/hooks";
@@ -32,7 +32,6 @@ import { useP2PNetwork } from "~/systems/p2p/peer.client";
 import { MiniFireballSpell } from "~/systems/spells/MiniFireballSpell";
 import type { SpellContext, SpellResult } from "~/systems/spells/types";
 import type { AnimStateId } from "~/types/animation";
-import type { MoveTarget } from "~/types/game";
 import type {
 	P2PMessage,
 	P2PShotMessage,
@@ -40,9 +39,7 @@ import type {
 } from "~/types/p2p";
 
 export function Game() {
-	// Cible de déplacement persistante (click-to-move)
-	const [moveTarget, setMoveTarget] = useState<MoveTarget>(null);
-	const playerRef = useRef<RigidBodyApi | null>(null);
+	const playerRef = useRef<RapierRigidBody | null>(null);
 	const animOverrideRef = useRef<AnimStateId | null>(null);
 	const [camFollow, setCamFollow] = useState<boolean>(true);
 	const [torchEnabled, setTorchEnabled] = useState(false);
@@ -197,11 +194,9 @@ export function Game() {
 					{/* Player forward light cone (torch-like) */}
 					{torchEnabled && <PlayerLightCone playerRef={playerRef} />}
 					<Player
-						target={moveTarget}
 						bodyRef={playerRef}
 						animOverrideRef={animOverrideRef}
 						performDashRef={performDashRef}
-						onCancelMove={() => setMoveTarget(null)}
 					/>
 					<ProjectileManager
 						// biome-ignore lint/suspicious/noExplicitAny: forwardRef type mismatch
@@ -270,8 +265,9 @@ export function Game() {
 	);
 }
 
+
 function performPrimaryCast(
-	body: RigidBodyApi | null,
+	body: RapierRigidBody | null,
 	projMgr: ProjectileManagerRef | null,
 	peerId: string | null,
 	send: (m: P2PMessage) => void,
@@ -367,7 +363,18 @@ function performPrimaryCast(
 					d: dir,
 				};
 				send(shot);
-				const msg: P2PSpellCastMessage = { t: "spell-cast", ...proj };
+				const msg: P2PSpellCastMessage = {
+					t: "spell-cast",
+					id,
+					from: proj.from,
+					kind: proj.kind,
+					p: proj.p,
+					d: proj.d,
+					speed: proj.speed,
+					range: proj.range,
+					radius: proj.radius,
+					damage: proj.damage,
+				};
 				send(msg);
 			} catch (e) {
 				console.error(
@@ -388,7 +395,7 @@ function WorldReadySensor({
 	playerRef,
 	onReady,
 }: {
-	playerRef: React.MutableRefObject<RigidBodyApi | null>;
+	playerRef: React.MutableRefObject<RapierRigidBody | null>;
 	onReady: () => void;
 }) {
 	const { world } = useRapier();

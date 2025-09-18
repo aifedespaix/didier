@@ -52,8 +52,7 @@ export function ExplosionVisual({ color = "#ffae00", radius = 0.9, duration = 0.
     <group>
       <mesh>
         <sphereGeometry args={[radius, 24, 24]} />
-        {/* @ts-expect-error three types */}
-        <primitive ref={mat as any} object={material} attach="material" />
+		<primitive ref={mat as any} object={material} attach="material" />
       </mesh>
       <pointLight color={color} intensity={6} distance={6} decay={3} />
     </group>
@@ -61,4 +60,3 @@ export function ExplosionVisual({ color = "#ffae00", radius = 0.9, duration = 0.
 }
 
 export default ExplosionVisual;
-

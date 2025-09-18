@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef } from "react";
-import type { RigidBodyApi } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
 import { Color, Group, MeshStandardMaterial, PlaneGeometry, Shape, ShapeGeometry, Vector3 } from "three";
 import { useFrame } from "@react-three/fiber";
 import { useAim } from "@/stores/aim";
@@ -8,7 +8,7 @@ import { useAim } from "@/stores/aim";
 export type AimVisualType = "arrow" | "line" | "cone";
 
 export interface AimVisualProps {
-  playerRef: React.MutableRefObject<RigidBodyApi | null>;
+  playerRef: React.MutableRefObject<RapierRigidBody | null>;
   visible: boolean;
   range: number; // meters
   type?: AimVisualType;

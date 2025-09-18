@@ -25,7 +25,7 @@ export function NetworkPanel({
   peers: string[];
   hostId?: string | null;
   peersInfo?: Array<{ id: string; open: boolean; rtt: number | null; lastStateDelta: number | null }>;
-  onReconnect?: () => void;
+  onReconnect?: () => void | Promise<unknown>;
   onPing?: () => void;
 }) {
   // Compute overall link health: only green if at least one peer is open AND sending states recently

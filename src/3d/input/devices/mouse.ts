@@ -23,11 +23,19 @@ export function attachMouse({
 		return null;
 	};
 
+	const warned = new Set<string>();
+
 	const onMouseDown = (e: MouseEvent) => {
 		const code = codeFromButton(e.button);
 		if (!code) return;
 		const action = resolveAction(code);
-		if (!action) return;
+		if (!action) {
+			if (code === "Mouse:Left" && !warned.has(code)) {
+				warned.add(code);
+				console.warn(`[Input] Aucun binding pour ${code} (aucun tir déclenché)`);
+			}
+			return;
+		}
 		if (!pressedButtons.has(e.button)) {
 			pressedButtons.add(e.button);
 			bus.emit({

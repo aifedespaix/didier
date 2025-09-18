@@ -1,7 +1,8 @@
 "use client";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { RigidBodyApi } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
 import { useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { Vector3 } from "three";
 import { useActionEvents } from "~/3d/input/hooks";
 
@@ -10,9 +11,9 @@ const MAX_RADIUS = 40;
 const ZOOM_STEP = 2;
 
 export interface CameraControllerProps {
-	targetRef: React.MutableRefObject<RigidBodyApi | null>;
+	targetRef: React.MutableRefObject<RapierRigidBody | null>;
 	follow: boolean;
-	setFollow: (v: boolean) => void;
+	setFollow: Dispatch<SetStateAction<boolean>>;
 }
 
 export function CameraController({

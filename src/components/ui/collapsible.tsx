@@ -54,16 +54,25 @@ export function CollapsibleTrigger({
   if (!ctx) return null;
   const onClick = () => ctx.setOpen(!ctx.open);
   if (asChild && React.isValidElement(children)) {
-    const prev = (children as any).props?.onClick as ((e: any) => void) | undefined;
+    type ChildProps = {
+      onClick?: (event: any) => void;
+      className?: string;
+      style?: React.CSSProperties;
+      role?: string;
+    };
+    const element = children as React.ReactElement<ChildProps>;
+    const prev = element.props.onClick;
     const merged = (e: any) => {
       try { prev?.(e); } catch {}
       if (!e?.defaultPrevented) onClick();
     };
-    return React.cloneElement(children as any, {
+    const mergedClassName = [element.props.className, className].filter(Boolean).join(" ");
+    const mergedStyle = { ...(element.props.style ?? {}), ...(style ?? {}) };
+    return React.cloneElement(element, {
       onClick: merged,
-      className: [children.props?.className, className].filter(Boolean).join(" "),
-      style: { ...(children.props?.style ?? {}), ...(style ?? {}) },
-      role: (children as any).props?.role ?? "button",
+      className: mergedClassName || undefined,
+      style: mergedStyle,
+      role: element.props.role ?? "button",
     });
   }
   return (

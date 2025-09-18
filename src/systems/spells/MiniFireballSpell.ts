@@ -6,7 +6,7 @@ import {
 } from "@/systems/spells/types";
 
 /**
- * Parameters controlling the small fireball projectile fired on left click.
+ * Parameters controlling the small bolt projectile fired on left click.
  * All values are expressed using world units.
  */
 export interface MiniFireballParams {
@@ -18,14 +18,14 @@ export interface MiniFireballParams {
 
 /**
  * Spell used for the default left-click attack.
- * It launches a mini fireball towards the aimed direction.
+ * It launches a fast magical bolt towards the aimed direction.
  */
 export class MiniFireballSpell extends SpellBase {
 	constructor(
 		private readonly params: MiniFireballParams = {
-			speed: 50,
-			range: 30,
-			radius: 0.25,
+			speed: 70,
+			range: 32,
+			radius: 0.14,
 			damage: 10,
 		},
 	) {
@@ -43,7 +43,7 @@ export class MiniFireballSpell extends SpellBase {
 	): SpellResult {
 		if (ctx.spawnProjectile) {
 			ctx.spawnProjectile({
-				kind: "fireball",
+				kind: "magic-bolt",
 				speed: this.params.speed,
 				range: this.params.range,
 				radius: this.params.radius,

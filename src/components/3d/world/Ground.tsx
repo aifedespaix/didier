@@ -9,7 +9,7 @@ import { useAim } from "@/stores/aim";
 export function Ground({
 	onRightClick,
 }: {
-	onRightClick: (x: number, z: number) => void;
+	onRightClick?: (x: number, z: number) => void;
 }) {
 	// Dimensions du terrain et des murs (m)
 	const SIZE_X = WORLD.sizeX; // X (largeur)
@@ -32,6 +32,7 @@ export function Ground({
 
 	const updateFromPoint = useCallback(
 		(p: { x: number; y: number; z: number }) => {
+			if (!onRightClick) return;
 			onRightClick(p.x, p.z);
 		},
 		[onRightClick],
@@ -39,19 +40,18 @@ export function Ground({
 
 	const handlePointerDown = useCallback(
 		(e: ThreeEvent<PointerEvent>) => {
-			if (e.button !== 2) return; // Right click only
+			if (e.button !== 2 || !onRightClick) return; // Right click disabled if handler absent
 			rmbDown.current = true;
 			// Capture pointer to keep receiving move events reliably while held
+			const native = e.nativeEvent;
+			const target = native.target as Element | null;
 			try {
-				if (
-					e?.target?.setPointerCapture &&
-					typeof e.pointerId !== "undefined"
-				) {
-					e.target.setPointerCapture(e.pointerId);
+				if (target && typeof target.setPointerCapture === "function") {
+					target.setPointerCapture(native.pointerId);
 				}
 			} catch {}
 			e.stopPropagation();
-			e.preventDefault?.();
+			native.preventDefault();
 			const p = e.point;
 			if (p) updateFromPoint(p);
 		},
@@ -61,12 +61,11 @@ export function Ground({
 	const handlePointerUp = useCallback((e: ThreeEvent<PointerEvent>) => {
 		if (e.button === 2) {
 			rmbDown.current = false;
+			const native = e.nativeEvent;
+			const target = native.target as Element | null;
 			try {
-				if (
-					e?.target?.releasePointerCapture &&
-					typeof e.pointerId !== "undefined"
-				) {
-					e.target.releasePointerCapture(e.pointerId);
+				if (target && typeof target.releasePointerCapture === "function") {
+					target.releasePointerCapture(native.pointerId);
 				}
 			} catch {}
 		}
@@ -81,6 +80,8 @@ export function Ground({
 				const p = e.point;
 				if (p) setAim([p.x, p.y, p.z]);
 			}
+
+			if (!onRightClick) return;
 
 			// If RMB held, also update move target (throttled ~30 Hz)
 			const buttons: number | undefined = e.buttons ?? e?.nativeEvent?.buttons;
@@ -116,7 +117,7 @@ export function Ground({
 			lastAimUpdate.current = now;
 			setAim([point.x, point.y, point.z]);
 		}
-		if (rmbDown.current && now - lastUpdate.current > 33) {
+		if (onRightClick && rmbDown.current && now - lastUpdate.current > 33) {
 			lastUpdate.current = now;
 			updateFromPoint(point);
 		}

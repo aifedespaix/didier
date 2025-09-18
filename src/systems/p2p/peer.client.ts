@@ -273,7 +273,7 @@ export function useP2PNetwork(
 						return;
 					}
 					// Fallback to client mode with random id
-					const clientPeer = new Peer(undefined, { config: getIceConfig() });
+						const clientPeer = new Peer({ config: getIceConfig() });
 					peerRef.current = clientPeer;
 					clientPeer.on("open", (id) => {
 						if (disposed) return;
@@ -805,7 +805,9 @@ export function useP2PNetwork(
 		send: (msg: P2PMessage) => broadcast(msg),
 		onMessage: (cb: (sender: PeerId, msg: P2PMessage) => void) => {
 			listenersRef.current.add(cb);
-			return () => listenersRef.current.delete(cb);
+			return () => {
+				listenersRef.current.delete(cb);
+			};
 		},
 	} as const;
 }

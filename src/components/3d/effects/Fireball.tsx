@@ -53,8 +53,7 @@ export function FireballVisual({ color = "#ff6a00", radius = 0.42 }: { color?: s
     <group>
       <mesh castShadow>
         <sphereGeometry args={[radius, 24, 24]} />
-        {/* @ts-expect-error three types */}
-        <primitive ref={mat as any} object={material} attach="material" />
+		<primitive ref={mat as any} object={material} attach="material" />
       </mesh>
       {/* warm light */}
       <pointLight color={color} intensity={2.8} distance={7} decay={2} />
@@ -63,4 +62,3 @@ export function FireballVisual({ color = "#ff6a00", radius = 0.42 }: { color?: s
 }
 
 export default FireballVisual;
-

@@ -33,17 +33,13 @@ export function buildDefaultBindings(layout: KeyboardLayout): ContextBindings {
 		"Mouse:WheelDown": "camera.zoom.out",
 	};
 
-	if (layout === "azerty") {
-		gameplay["Key:KeyZ"] = "game.move.forward";
-		gameplay["Key:KeyS"] = "game.move.back";
-		gameplay["Key:KeyQ"] = "game.move.left";
-		gameplay["Key:KeyD"] = "game.move.right";
-	} else {
-		gameplay["Key:KeyW"] = "game.move.forward";
-		gameplay["Key:KeyS"] = "game.move.back";
-		gameplay["Key:KeyA"] = "game.move.left";
-		gameplay["Key:KeyD"] = "game.move.right";
-	}
+	// KeyboardEvent.code reflects the physical key location. On AZERTY layouts
+	// the keys labelled ZQSD map to the same codes (KeyW/KeyA/KeyS/KeyD) as WASD
+	// on QWERTY, so we can bind once for both layouts.
+	gameplay["Key:KeyW"] = "game.move.forward";
+	gameplay["Key:KeyS"] = "game.move.back";
+	gameplay["Key:KeyA"] = "game.move.left";
+	gameplay["Key:KeyD"] = "game.move.right";
 
 	const menu: BindingProfile = {
 		// Navigation UI

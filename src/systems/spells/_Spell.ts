@@ -1,4 +1,4 @@
-import type { RigidBodyApi } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
 import type { Quaternion } from "three";
 import type { Character } from "@/systems/character/Character";
 import type { AnimStateId } from "@/types/animation";
@@ -6,7 +6,7 @@ import type { AnimStateId } from "@/types/animation";
 export type SpellId = "dash" | "primary" | "secondary" | "ultimate";
 
 export interface SpellContext {
-	body: RigidBodyApi;
+	body: RapierRigidBody;
 	visualQuaternion: Quaternion | null | undefined;
 	setAnimOverride: (state: AnimStateId | null, durationMs?: number) => void;
 	nowMs?: number;
